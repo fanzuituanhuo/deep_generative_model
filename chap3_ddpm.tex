@@ -1,0 +1,857 @@
+% !TEX program = xelatex
+% ============================================================
+%  Deep Generative Models — Chapter 3: Denoising Diffusion Probabilistic Models
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+% §0  Fonts
+% ============================================================
+% ctex is only needed for CJK typesetting; load it only when available.
+\IfFileExists{ctex.sty}{\usepackage{ctex}}{}
+
+% ============================================================
+% §1  Page layout
+% ============================================================
+\IfFileExists{geometry.sty}{%
+  \usepackage[margin=2.5cm]{geometry}
+}{%
+  \PackageWarning{geometry}{geometry package not found; using default A4 margins. Install `geometry' for 2.5cm margins.}%
+}
+\usepackage{microtype}
+\linespread{1.08}
+
+% ============================================================
+% §2  Packages
+% ============================================================
+\usepackage{amsmath,amssymb,amsthm}
+\renewcommand{\proofname}{Proof}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{soul}
+\usepackage{leftindex}
+\usepackage{tikz}
+\usetikzlibrary{arrows,calc,positioning}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{fontawesome5}
+\usepackage{titlesec}
+
+% ============================================================
+% §3  Colors
+% ============================================================
+\definecolor{mydarkblue}{rgb}{0.0,0.08,0.45}
+\definecolor{nicepink}  {RGB}{255,105,180}
+\definecolor{cardbg}    {RGB}{245,245,247}
+\definecolor{blue_new}  {RGB}{63,77,238}
+\definecolor{page_white}{RGB}{227,227,229}
+\definecolor{highlight} {HTML}{FCD66F}
+\definecolor{warning}   {HTML}{E57373}
+\definecolor{info}      {HTML}{4DB6AC}
+\definecolor{navblue}     {HTML}{0077b6}
+\definecolor{navcyan}     {HTML}{00b4d8}
+\definecolor{navdark}     {HTML}{023e8a}
+\definecolor{accentorange}{HTML}{fb8500}
+
+\newcommand{\red}   [1]{{\color{OrangeRed}#1}}
+\newcommand{\tlight}[1]{\textcolor{warning}{#1}}
+\newcommand{\tinfo} [1]{\textcolor{info}{#1}}
+\newcommand{\bglight}[1]{\hl{#1}}
+\newcommand{\cbox}[2]{\colorbox{#1}{\textcolor{black}{#2}}}
+\newcommand{\bgwarn}[1]{\cbox{warning}{#1}}
+\newcommand{\bginfo}[1]{\cbox{info}{#1}}
+
+% ============================================================
+% §4  Hyperlinks
+% ============================================================
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks = true,
+    linkcolor  = mydarkblue,
+    citecolor  = mydarkblue,
+    urlcolor   = mydarkblue
+}
+
+% ============================================================
+% §5  Math macros
+% ============================================================
+\newcommand{\wh}{\widehat}
+\newcommand{\wt}{\widetilde}
+\newcommand{\ov}{\overline}
+\renewcommand{\tilde}{\wt}
+\renewcommand{\hat}{\wh}
+\renewcommand{\d}{\mathrm{d}}
+
+\newcommand{\N}{\mathbb{N}}  \newcommand{\R}{\mathbb{R}}
+\newcommand{\Q}{\mathbb{Q}}  \newcommand{\Z}{\mathbb{Z}}
+\newcommand{\C}{\mathbb{C}}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\P\relax
+\DeclareMathOperator*{\P}{\mathbb{P}}
+\DeclareMathOperator*{\var}{Var}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\dist}{dist}
+
+\renewcommand{\L}{\mathcal{L}}
+\newcommand{\cN}{\mathcal{N}}
+
+% ---- DDPM-specific ----
+\newcommand{\KL}[2]{D_{\mathrm{KL}}\!\left(#1\,\|\,#2\right)}
+\newcommand{\balpha}{\bar{\alpha}}
+\newcommand{\noiseschedule}{\{\beta_i\}_{i=1}^{L}}
+\newcommand{\pdata}{p_{\mathrm{data}}}
+\newcommand{\pprior}{p_{\mathrm{prior}}}
+\newcommand{\Ldiff}{\mathcal{L}_{\text{diffusion}}}
+\newcommand{\Lprior}{\mathcal{L}_{\text{prior}}}
+\newcommand{\Lrecon}{\mathcal{L}_{\text{recon}}}
+\newcommand{\Lsimple}{\mathcal{L}_{\text{simple}}}
+\newcommand{\LDDPM}{\mathcal{L}_{\text{DDPM}}}
+\newcommand{\LELBO}{\mathcal{L}_{\text{ELBO}}}
+\newcommand{\Lbound}{\mathcal{B}}
+% \Efwd: shorthand for expectation over forward trajectory x_{1:L} given fixed x_0
+% NOTE: this macro is ONLY used inside the ELBO proof after x_0 is fixed;
+%       do NOT redefine it inline (that would produce a tautology).
+\newcommand{\Efwd}{\mathbb{E}^{\mathrm{fwd}}_{x_0}}
+
+% p_i(x_i|x_0): forward law given x_0; \bar p_i(x_i): population marginal over x_0\sim p_data
+\newcommand{\bpMarg}[1]{\bar p_{#1}}
+
+% ============================================================
+% §6  Section heading style
+% ============================================================
+\titleformat{\section}
+  {\large\bfseries\color{mydarkblue}}{\thesection}{0.5em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+
+\titleformat{\subsection}
+  {\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{1ex}{0.5ex}
+
+% ============================================================
+% §7  Compact title + horizontal TOC
+% ============================================================
+\makeatletter
+\newcommand{\makecompacttitle}{%
+    \begin{tcolorbox}[
+        colback=mydarkblue!5, colframe=mydarkblue!10,
+        arc=3pt, boxrule=0.5pt,
+        left=5pt, right=5pt, top=5pt, bottom=5pt
+    ]
+        {\large\bfseries \@title}\hfill{\small \@author}\\[-2pt]
+        {\tiny\color{gray} \@date \hfill Deep Generative Models Notes}
+    \end{tcolorbox}
+    \vspace{-1em}
+}
+\makeatother
+
+\newtcolorbox{tabNavBoxSmall}[1][]{
+    enhanced,
+    colframe=white, colback=gray!5, coltext=black!80,
+    fontupper=\sffamily\small\bfseries,
+    arc=1.5mm, boxrule=0pt, bottomrule=2pt,
+    left=2mm, right=2mm, top=1.5mm, bottom=1.5mm,
+    #1
+}
+
+\newcommand{\horizontalTOCDDPM}{%
+    \begin{center}
+    \begin{tcbraster}[
+        raster columns=2, raster width=\linewidth,
+        raster column skip=1mm, raster row skip=1mm, raster equal height
+    ]
+        \begin{tabNavBoxSmall}\hyperref[sec:overview]{\ Overview}\end{tabNavBoxSmall}
+        \begin{tabNavBoxSmall}\hyperref[sec:forward]{\ Forward Process}\end{tabNavBoxSmall}
+        \begin{tabNavBoxSmall}\hyperref[sec:reverse]{\ Reverse Process}\end{tabNavBoxSmall}
+        \begin{tabNavBoxSmall}\hyperref[sec:elbo]{\ DDPM ELBO}\end{tabNavBoxSmall}
+        \begin{tabNavBoxSmall}\hyperref[sec:practical]{\ Practical Choices}\end{tabNavBoxSmall}
+    \end{tcbraster}
+    \vspace{-2.5pt}%
+    \noindent\textcolor{gray!30}{\rule{\linewidth}{1pt}}
+    \end{center}
+    \vspace{1em}
+}
+
+% ============================================================
+% §8  Theorem environments (tcolorbox)
+% ============================================================
+\tcbset{
+  mytheo/.style={
+    enhanced, breakable,
+    colback=#1!5!white, colframe=#1!70!black,
+    coltitle=white, fonttitle=\bfseries\small,
+    boxrule=0.6pt, arc=3pt,
+    left=5pt, right=5pt, top=10pt, bottom=5pt,
+    attach boxed title to top left={yshift*=-\tcboxedtitleheight/2, xshift=2mm},
+    boxed title style={
+      colback=#1!80!black, colframe=#1!80!black,
+      boxrule=0pt, arc=2pt
+    }
+  }
+}
+
+\newtcbtheorem[auto counter]{theorem}    {Theorem}{mytheo=WildStrawberry}{thm}
+\newtcbtheorem[auto counter]{definition} {Definition}{mytheo=NavyBlue  }{def}
+\newtcbtheorem[auto counter]{example}    {Example}{mytheo=YellowOrange }{ex}
+\newtcbtheorem[auto counter]{remark}     {Remark}{mytheo=Periwinkle    }{rem}
+\newtcbtheorem[auto counter]{proposition}{Proposition}{mytheo=JungleGreen}{prop}
+\newtcbtheorem[auto counter]{lemma}      {Lemma}{mytheo=ForestGreen  }{lem}
+\newtcbtheorem[auto counter]{corollary}  {Corollary}{mytheo=BrickRed   }{cor}
+\newtcbtheorem[auto counter]{fact}       {Fact}{mytheo=YellowGreen  }{fact}
+\newtcbtheorem[auto counter]{assumption} {Assumption}{mytheo=Plum     }{as}
+
+\tcolorboxenvironment{proof}{
+  blanker, breakable, left=4pt, right=4pt, top=3pt, bottom=3pt,
+  borderline west={2pt}{0pt}{gray!50}
+}
+
+% ============================================================
+% §9  Body
+% ============================================================
+\title{Chapter 3: Denoising Diffusion Probabilistic Models}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\makecompacttitle
+\horizontalTOCDDPM
+
+\begin{center}
+  \includegraphics[width=\linewidth]{\detokenize{Gemini_Generated_Image_nxh0finxh0finxh0.png}}
+\end{center}
+\vspace{0.5em}
+
+% ============================================================
+\section{Overview}\label{sec:overview}
+% ============================================================
+
+\begin{definition}{DDPM as Two Stochastic Processes}{ddpm-two-processes}
+A denoising diffusion probabilistic model (DDPM) is defined by two coupled stochastic processes:
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item a \textbf{forward process} that gradually corrupts data by Gaussian noise;
+    \item a \textbf{reverse denoising process} that learns to remove noise step by step.
+\end{itemize}
+\end{definition}
+
+The forward chain starts at real data $x_0\sim\pdata$ and moves toward an isotropic Gaussian prior:
+\[
+x_0 \rightarrow x_1 \rightarrow \cdots \rightarrow x_{L},\qquad
+x_{L}\sim \bpMarg{L},\quad \bpMarg{L}\approx \pprior=\cN(0,\mathbf{I}).
+\]
+The reverse chain learns a parameterized transition
+\[
+q_{\phi}(x_{i-1}\mid x_i),\qquad i=L,\dots,1,
+\]
+to transform unstructured Gaussian noise back to structured samples.
+
+% ============================================================
+\section{Forward Process (Fixed Encoder)}\label{sec:forward}
+% ============================================================
+
+\subsection{Markov Corruption Kernel}
+
+\begin{definition}{Forward Transition}{forward-def}
+Let $\noiseschedule$ be a predefined monotone increasing schedule. Define
+\[
+\alpha_i \triangleq \sqrt{1-\beta_i},\qquad i=1,\dots,L.
+\]
+The forward process is the Markov chain
+\[
+p(x_i\mid x_{i-1})
+=\cN\!\left(x_i;\,\alpha_i x_{i-1},\,\beta_i\mathbf{I}\right).
+\]
+\end{definition}
+
+\begin{remark}{Noise Schedule Intuition}{forward-remark}
+Each forward step first scales the previous state by $\alpha_i$ and then injects isotropic Gaussian noise with variance $\beta_i$. As $i$ grows, signal shrinks and noise accumulates.
+\end{remark}
+
+\subsection{Closed-Form Marginal at Arbitrary Time}
+
+Define the cumulative product
+\[
+\balpha_i \triangleq \prod_{k=1}^{i}\alpha_k
+= \prod_{k=1}^{i}\sqrt{1-\beta_k}.
+\]
+
+\begin{proposition}{Closed Form of \texorpdfstring{$p_i(x_i\mid x_0)$}{pi(xi|x0)}}{forward-closed}
+For every $i\in\{1,\dots,L\}$, the forward law at noise level~$i$ given clean $x_0$ is
+\[
+p_i(x_i\mid x_0)
+=\cN\!\left(x_i;\,\balpha_i x_0,\,(1-\balpha_i^2)\mathbf{I}\right).
+\]
+Equivalently,
+\[
+x_i = \balpha_i x_0 + \sqrt{1-\balpha_i^2}\,\varepsilon,\qquad
+\varepsilon\sim\cN(0,\mathbf{I}).
+\]
+\end{proposition}
+
+\begin{proof}
+Use induction on $i$. The statement is immediate for $i=1$. Assume it holds for $i-1$. Since
+\[
+x_i=\alpha_i x_{i-1}+\sqrt{\beta_i}\,\xi_i,\qquad \xi_i\sim\cN(0,\mathbf{I}),
+\]
+substitute the induction form of $x_{i-1}$:
+\[
+x_i=\alpha_i\!\left(\balpha_{i-1}x_0+\sqrt{1-\balpha_{i-1}^2}\,\varepsilon'\right)+\sqrt{\beta_i}\xi_i
+=\balpha_i x_0+\eta_i,
+\]
+where $\eta_i$ is Gaussian with covariance
+\[
+\alpha_i^2(1-\balpha_{i-1}^2)\mathbf{I}+\beta_i\mathbf{I}
+=(1-\balpha_i^2)\mathbf{I}.
+\]
+Thus $x_i\mid x_0$ is Gaussian with the claimed mean and covariance.
+\end{proof}
+
+The forward marginal $p_i(x_i\mid x_0)=\cN(\bar\alpha_i x_0,(1-\bar\alpha_i^2)\mathbf{I})$
+converges to $\cN(0,\mathbf{I})$ and becomes independent of $x_0$ if and only if
+$\bar\alpha_i=\prod_{k=1}^{i}\sqrt{1-\beta_k}\to 0$.
+A monotone-increasing schedule $\{\beta_i\}$ bounded away from zero is a sufficient (but not necessary) condition for $\bar\alpha_L\to 0$.
+Integrating over the unknown data law $\pdata$ gives the population marginal
+\[
+\bpMarg{i}(x_i)=\int \pdata(x_0)\,p_i(x_i\mid x_0)\,\d x_0,
+\]
+\begin{remark}{Marginal Levels and Kernel Naming}{marginal-kernel-naming}
+The population marginal differs at each noise level
+($\bpMarg{i}\neq \bpMarg{i'}$ for $i\neq i'$), even though every one-step kernel
+$p(x_i\mid x_{i-1})$ is known in closed form.
+We write $\pdata$ for the clean-data distribution; $p_i(x_i\mid x_0)$ for the
+forward law of $x_i$ given~$x_0$; and
+$\bpMarg{i}(x_i)=\int \pdata(x_0)\,p_i(x_i\mid x_0)\,\d x_0$ for its population
+marginal.
+Only adjacent-time maps $p(x_i\mid x_{i-1})$ are called \emph{transition
+kernels}. Reverse \emph{kernels} are denoted by~$q$ (learned transitions use
+$q_\phi$).
+This is the opposite of the original DDPM paper \emph{(Ho et al.\ 2020)}, which
+uses $q$ for the forward process and $p_\theta$ for the reverse model.
+\end{remark}
+
+% ============================================================
+\section{Reverse Denoising Process}\label{sec:reverse}
+% ============================================================
+
+\subsection{Learning an Approximate Reverse Kernel}
+
+The true reverse transition $q(x_{i-1}\mid x_i)$ is unknown.
+DDPM learns a tractable Gaussian family:
+\[
+q_\phi(x_{i-1}\mid x_i)
+\triangleq \cN\!\left(x_{i-1};\,\mu_\phi(x_i,i),\,\sigma^2(i)\mathbf{I}\right),
+\]
+where $\mu_\phi(\cdot,i):\R^D\to\R^D$ is learnable and $\sigma^2(i)>0$ is a fixed
+schedule.  Following the original DDPM paper, $\sigma^2(i)$ is set equal to the
+forward-posterior variance
+$\sigma^2(i)=\frac{(1-\bar\alpha_{i-1}^2)\beta_i}{1-\bar\alpha_i^2}$
+(derived in Proposition~\ref{prop:reverse-posterior}), which ensures the
+mean-matching KL identity used throughout.
+
+The stage-wise objective is to minimize
+\[
+\E_{x_i\sim \bpMarg{i}}\!\left[\KL{q(x_{i-1}\mid x_i)}{q_\phi(x_{i-1}\mid x_i)}\right].
+\]
+
+\subsection{Conditioning on \texorpdfstring{$x_0$}{x0}}
+
+By Bayes' rule under the forward chain,
+\[
+q(x_{i-1}\mid x_i)
+=\frac{p(x_i\mid x_{i-1})\,\bpMarg{i-1}(x_{i-1})}{\bpMarg{i}(x_i)}.
+\]
+Each forward kernel $p(x_i\mid x_{i-1})$ is explicit, but the reverse kernel still depends on the marginals $\bpMarg{i-1}$ (or $\pdata$ when $i=1$) and $\bpMarg{i}$.
+The latter is obtained from $\pdata$ via
+\[
+\bpMarg{i}(x_i)=\int \pdata(x_0)\,p_i(x_i\mid x_0)\,\d x_0,
+\]
+and $\pdata$ is unknown in practice.
+Therefore, even with a fully specified forward process, we cannot evaluate $\bpMarg{i}(x_i)$ or $q(x_{i-1}\mid x_i)$ pointwise.
+The remedy is to condition on a clean sample $x_0\sim\pdata$, for which all forward quantities are Gaussian:
+\[
+p(x_{i-1}\mid x_i,x_0)
+=p(x_i\mid x_{i-1})\frac{p_{i-1}(x_{i-1}\mid x_0)}{p_i(x_i\mid x_0)}.
+\]
+All three factors on the right are Gaussian, so the posterior above is also Gaussian.
+Training then replaces expectations under $\bpMarg{i}$ by Monte Carlo over $x_0\sim\pdata$ and $x_i\sim p_i(\cdot\mid x_0)$.
+
+\begin{theorem}[breakable=false]{KL Decomposition for Reverse Matching}{reverse-kl-decomp}
+For each $i$, define the marginal and posterior reverse-KL objectives
+\begin{align*}
+\mathcal{J}^{\mathrm{rev}}_i(\phi)
+&\triangleq \E_{x_i\sim \bpMarg{i}}\!\left[\KL{q(x_{i-1}\mid x_i)}{q_\phi(x_{i-1}\mid x_i)}\right],\\
+\mathcal{J}^{\mathrm{post}}_i(\phi)
+&\triangleq \E_{x_0\sim\pdata}\,\E_{x_i\sim p_i(\cdot\mid x_0)}
+\!\left[\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}\right].
+\end{align*}
+Then
+\[
+\mathcal{J}^{\mathrm{rev}}_i(\phi)=\mathcal{J}^{\mathrm{post}}_i(\phi)+C_i,
+\]
+where $C_i$ is independent of $\phi$.
+In particular, minimizing the conditional objective is equivalent to minimizing the marginal reverse-KL up to an additive constant.
+\end{theorem}
+
+\begin{proof}
+Fix $x_i$. The true reverse kernel is a mixture of tractable posteriors over $x_0$:
+\[
+q(x_{i-1}\mid x_i)
+=\int p(x_{i-1}\mid x_i,x_0)\,\pdata(x_0\mid x_i)\,\d x_0
+=\E_{x_0\sim \pdata(\cdot\mid x_i)}\!\left[p(x_{i-1}\mid x_i,x_0)\right],
+\]
+where $\pdata(x_0\mid x_i)\propto \pdata(x_0)\,p_i(x_i\mid x_0)$.
+Subtract the conditional objective from the marginal KL; the $q_\phi$ terms cancel:
+\begin{align*}
+&\E_{x_i\sim \bpMarg{i}}\!\left[\KL{q(x_{i-1}\mid x_i)}{q_\phi(x_{i-1}\mid x_i)}\right]
+-\E_{x_0\sim\pdata}\,\E_{x_i\sim p_i(\cdot\mid x_0)}
+\!\left[\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}\right]\\
+&\quad=
+\E_{(x_{i-1},x_i)\sim p(x_{i-1},x_i)}\!\left[\log q(x_{i-1}\mid x_i)\right]
+-\E_{(x_0,x_{i-1},x_i)\sim p(x_0,x_{i-1},x_i)}\!\left[\log p(x_{i-1}\mid x_i,x_0)\right]\\
+&\quad=
+\E_{x_i\sim \bpMarg{i}}
+\E_{x_0\sim \pdata(\cdot\mid x_i)}
+\Big[
+\log \pdata(x_0\mid x_i)
+-\E_{x_{i-1}\sim p(\cdot\mid x_i,x_0)}\!\left[\log \pdata(x_0\mid x_{i-1},x_i)\right]
+\Big],
+\end{align*}
+using $\log q(x_{i-1}\mid x_i)-\log p(x_{i-1}\mid x_i,x_0)
+=\log \pdata(x_0\mid x_i)-\log \pdata(x_0\mid x_{i-1},x_i)$,
+where $p(x_{i-1},x_i)=p(x_i\mid x_{i-1})\,\bpMarg{i-1}(x_{i-1})$ and
+$p(x_0,x_{i-1},x_i)=\pdata(x_0)\,p(x_{i-1}\mid x_i,x_0)\,p_i(x_i\mid x_0)$.
+This depends only on the fixed forward chain, hence it is a $\phi$-free constant $C_i$.
+Therefore $\mathcal{J}^{\mathrm{rev}}_i(\phi)=\mathcal{J}^{\mathrm{post}}_i(\phi)+C_i$.
+\end{proof}
+
+\begin{remark}{Why Conditional Training Is Legitimate (Two Independent Routes)}{conditional-training-legitimacy}
+The stage-wise goal is to match the \emph{marginal} reverse kernel $q(x_{i-1}\mid x_i)$, but this object depends on unknown marginals $\bpMarg{i-1},\bpMarg{i}$ and cannot be evaluated directly.
+Conditioning on a clean sample $x_0$ replaces it with the tractable posterior $p(x_{i-1}\mid x_i,x_0)$.
+
+\textbf{Route~A (Theorem~1 only).}
+Theorem~\ref{thm:reverse-kl-decomp} shows
+$\mathcal{J}^{\mathrm{rev}}_i(\phi)=\mathcal{J}^{\mathrm{post}}_i(\phi)+C_i$ with $C_i$ independent of~$\phi$.
+So minimizing the conditional objective is exactly the same as minimizing the marginal reverse-KL up to an additive constant.
+This route does \emph{not} require the ELBO of Section~\ref{sec:elbo}.
+
+\textbf{Route~B (original DDPM paper).}
+The paper instead starts from maximizing $\log q_\phi(x_0)$ and derives a variational upper bound (Theorem~\ref{thm:ddpm-elbo}), whose diffusion term already has the conditional form $\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}$.
+That proof is self-contained and does not use Theorem~\ref{thm:reverse-kl-decomp}.
+
+Both routes justify the same practical recipe---sample $x_0\sim\pdata$, corrupt to $x_i$, and train $q_\phi$ against the Gaussian forward posterior---but they answer the question at different levels: Route~A is step-wise reverse matching; Route~B is end-to-end likelihood maximization.
+\end{remark}
+
+\begin{proposition}{Closed Form of \texorpdfstring{$p(x_{i-1}\mid x_i,x_0)$}{p(xi-1|xi,x0)}}{reverse-posterior}
+The conditional posterior is
+\[
+p(x_{i-1}\mid x_i,x_0)
+=\cN\!\left(x_{i-1};\,\mu(x_i,x_0,i),\,\sigma^2(i)\mathbf{I}\right),
+\]
+with
+\[
+\mu(x_i,x_0,i)
+=\frac{\alpha_i-\balpha_i^2/\alpha_i}{1-\balpha_i^2}x_i
++\frac{(1-\alpha_i^2)\balpha_i/\alpha_i}{1-\balpha_i^2}x_0,
+\]
+\[
+\sigma^2(i)
+=\frac{1-\balpha_{i-1}^2}{1-\balpha_i^2}\,\beta_i.
+\]
+\end{proposition}
+
+\begin{proof}
+This is the adjacent-step special case of the general reverse conditional
+transition formula for linear Gaussian corruptions; the general case for
+arbitrary $0\le t<s$ will be discussed later.
+We prove the one-step DDPM case directly.
+
+Conditioned on $x_0$, the forward marginal and one-step transition are
+\[
+p_{i-1}(x_{i-1}\mid x_0)
+=\cN\!\left(x_{i-1};\,\balpha_{i-1}x_0,\,(1-\balpha_{i-1}^2)\mathbf{I}\right),
+\qquad
+p(x_i\mid x_{i-1})
+=\cN\!\left(x_i;\,\alpha_i x_{i-1},\,\beta_i\mathbf{I}\right).
+\]
+By Bayes' rule,
+\[
+p(x_{i-1}\mid x_i,x_0)
+\propto
+p(x_i\mid x_{i-1})\,p_{i-1}(x_{i-1}\mid x_0).
+\]
+As a function of $x_{i-1}$, the log-density is quadratic, so the posterior is
+Gaussian.
+Its precision is
+\[
+\frac{\alpha_i^2}{\beta_i}
++\frac{1}{1-\balpha_{i-1}^2}
+=\frac{1-\balpha_i^2}{\beta_i(1-\balpha_{i-1}^2)},
+\]
+hence
+\[
+\sigma^2(i)
+=\frac{\beta_i(1-\balpha_{i-1}^2)}{1-\balpha_i^2}.
+\]
+The corresponding mean is
+\[
+\mu(x_i,x_0,i)
+=\sigma^2(i)\!\left(
+\frac{\alpha_i}{\beta_i}x_i
++\frac{\balpha_{i-1}}{1-\balpha_{i-1}^2}x_0
+\right)
+=\frac{\alpha_i(1-\balpha_{i-1}^2)}{1-\balpha_i^2}x_i
++\frac{\beta_i\balpha_{i-1}}{1-\balpha_i^2}x_0.
+\]
+Since $\balpha_{i-1}=\balpha_i/\alpha_i$ and $\beta_i=1-\alpha_i^2$, this is
+equivalently
+\[
+\mu(x_i,x_0,i)
+=\frac{\alpha_i-\balpha_i^2/\alpha_i}{1-\balpha_i^2}x_i
++\frac{(1-\alpha_i^2)\balpha_i/\alpha_i}{1-\balpha_i^2}x_0,
+\]
+which proves the claimed form.
+\end{proof}
+
+This yields the diffusion training term (mean-matching form,
+already averaged over $x_0$):
+\[
+\Ldiff(\phi)
+\triangleq
+\sum_{i=2}^{L}
+\frac{1}{2\sigma^2(i)}
+\E_{x_0\sim\pdata}\,\E_{x_i\sim p_i(\cdot\mid x_0)}
+\!\left[
+\left\|
+\mu_\phi(x_i,i)-\mu(x_i,x_0,i)
+\right\|_2^2
+\right].
+\]
+Because $q_\phi$ and $p(x_{i-1}\mid x_i,x_0)$ share the same variance $\sigma^2(i)$,
+the Gaussian KL satisfies
+$\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}
+=\frac{1}{2\sigma^2(i)}\|\mu(x_i,x_0,i)-\mu_\phi(x_i,i)\|_2^2$,
+so $\Ldiff(\phi)=\E_{x_0\sim\pdata}[\Ldiff(x_0;\phi)]$ where $\Ldiff(x_0;\phi)$ is the
+per-sample KL sum appearing in the ELBO (Section~\ref{sec:elbo}).
+
+% ============================================================
+\section{DDPM ELBO}\label{sec:elbo}
+% ============================================================
+
+\subsection{Joint Model and Variational Bound}
+
+Define the latent trajectory $x_{1:L}$ and generative joint
+\[
+q_\phi(x_0,x_{1:L})
+=\pprior(x_L)\prod_{i=1}^{L}q_\phi(x_{i-1}\mid x_i),
+\]
+where $\pprior(x_L)=\cN(0,\mathbf{I})$ is the sampling prior at the top of the reverse chain (the forward marginal satisfies $\bpMarg{L}\approx\pprior$ by schedule design).
+Let the forward trajectory given $x_0$ be Markov with transitions $p(x_i\mid x_{i-1})$, so
+\[
+\prod_{i=1}^{L}p(x_i\mid x_{i-1})
+\]
+is the joint density of $(x_1,\dots,x_L)$ and $\bpMarg{i}(x_i)=\int \pdata(x_0)\,p_i(x_i\mid x_0)\,\d x_0$.
+
+\begin{theorem}{ELBO Decomposition for DDPM}{ddpm-elbo}
+For any data sample $x_0$,
+\[
+-\log q_\phi(x_0)
+\le -\LELBO(x_0;\phi)
+=\Lprior(x_0)+\Lrecon(x_0;\phi)+\Ldiff(x_0;\phi),
+\]
+with
+\[
+\Lprior(x_0)
+\triangleq \KL{p_L(\cdot\mid x_0)}{\pprior(x_L)},
+\]
+\[
+\Lrecon(x_0;\phi)
+\triangleq \E_{x_1\sim p_1(\cdot\mid x_0)}\!\left[-\log q_\phi(x_0\mid x_1)\right],
+\]
+\[
+\Ldiff(x_0;\phi)
+\triangleq \sum_{i=2}^{L}
+\E_{x_i\sim p_i(\cdot\mid x_0)}
+\!\left[
+\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}
+\right].
+\]
+\end{theorem}
+
+\begin{proof}
+Fix $x_0$. The forward joint factorises as
+\[
+p(x_{1:L}\mid x_0)=\prod_{i=1}^{L}p(x_i\mid x_{i-1}).
+\]
+Write $\Efwd[\cdot]\triangleq\E_{x_{1:L}\sim p(x_{1:L}\mid x_0)}[\cdot]$
+for the expectation over the full forward trajectory given this fixed~$x_0$.
+Then
+\begin{align*}
+-\log q_\phi(x_0)
+&= -\log \int q_\phi(x_0,x_{1:L})\,\d x_{1:L} \\
+&= -\log \int p(x_{1:L}\mid x_0)\,
+\frac{q_\phi(x_0,x_{1:L})}{p(x_{1:L}\mid x_0)}\,\d x_{1:L} \\
+&= -\log \Efwd\!\left[\frac{q_\phi(x_0,x_{1:L})}{p(x_{1:L}\mid x_0)}\right] \\
+&\le \Efwd\!\left[-\log q_\phi(x_0,x_{1:L})
++\sum_{i=1}^{L}\log p(x_i\mid x_{i-1})\right]
+\triangleq \Lbound(x_0;\phi),
+\end{align*}
+by Jensen's inequality ($-\log$ is convex).
+Using
+$q_\phi(x_0,x_{1:L})=\pprior(x_L)\prod_{i=1}^{L}q_\phi(x_{i-1}\mid x_i)$,
+expand the bound:
+\begin{align*}
+\Lbound(x_0;\phi)
+&= \Efwd\!\left[-\log \pprior(x_L)+\sum_{i=1}^{L}\log p(x_i\mid x_{i-1})\right]
+-\Efwd\!\left[\sum_{i=1}^{L}\log q_\phi(x_{i-1}\mid x_i)\right] \\
+&= \E_{x_L\sim p_L(\cdot\mid x_0)}\!\left[-\log \pprior(x_L)\right] \\
+&\quad
++\E_{x_1\sim p_1(\cdot\mid x_0)}
+\!\left[\log p_1(x_1\mid x_0)-\log q_\phi(x_0\mid x_1)\right] \\
+&\quad
++\sum_{i=2}^{L}
+\E_{(x_{i-1},x_i)\sim p(\cdot\mid x_0)}
+\!\left[\log p(x_i\mid x_{i-1})-\log q_\phi(x_{i-1}\mid x_i)\right].
+\end{align*}
+The middle bracket equals
+$\E_{x_1\sim p_1(\cdot\mid x_0)}[\log p_1(x_1\mid x_0)]+\Lrecon(x_0;\phi)$;
+the first part will be cancelled by the telescoping sum below.
+For each $i\ge 2$, apply Bayes' rule on the forward chain conditioned on~$x_0$:
+\[
+\log p(x_i\mid x_{i-1})
+=\log p(x_{i-1}\mid x_i,x_0)+\log p_i(x_i\mid x_0)-\log p_{i-1}(x_{i-1}\mid x_0).
+\]
+Hence
+\begin{align*}
+&\E_{(x_{i-1},x_i)\sim p(\cdot\mid x_0)}
+\!\left[\log p(x_i\mid x_{i-1})-\log q_\phi(x_{i-1}\mid x_i)\right] \\
+&\quad=
+\E_{x_i\sim p_i(\cdot\mid x_0)}
+\!\left[\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}\right] \\
+&\quad\quad
++\E_{x_i\sim p_i(\cdot\mid x_0)}\!\left[\log p_i(x_i\mid x_0)\right]
+-\E_{x_{i-1}\sim p_{i-1}(\cdot\mid x_0)}
+\!\left[\log p_{i-1}(x_{i-1}\mid x_0)\right].
+\end{align*}
+Summing the last two terms from $i=2$ to $L$ telescopes:
+\begin{multline*}
+\sum_{i=2}^{L}\Big(
+\E_{x_i\sim p_i(\cdot\mid x_0)}\!\left[\log p_i(x_i\mid x_0)\right]
+-\E_{x_{i-1}\sim p_{i-1}(\cdot\mid x_0)}
+\!\left[\log p_{i-1}(x_{i-1}\mid x_0)\right]
+\Big) \\
+=\E_{x_L\sim p_L(\cdot\mid x_0)}\!\left[\log p_L(x_L\mid x_0)\right]
+-\E_{x_1\sim p_1(\cdot\mid x_0)}\!\left[\log p_1(x_1\mid x_0)\right].
+\end{multline*}
+Adding the $i=1$ bracket (which contained the extra
+$\E_{x_1\sim p_1(\cdot\mid x_0)}[\log p_1(x_1\mid x_0)]$ term) to the lower
+end of the telescope cancels that term, leaving
+\begin{align*}
+\Lbound(x_0;\phi)
+&= \E_{x_L\sim p_L(\cdot\mid x_0)}
+\!\left[\log p_L(x_L\mid x_0)-\log \pprior(x_L)\right] \\
+&\quad
++\Lrecon(x_0;\phi)
++\sum_{i=2}^{L}
+\E_{x_i\sim p_i(\cdot\mid x_0)}
+\!\left[\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}\right].
+\end{align*}
+The first bracket is $\Lprior(x_0)$ and the sum is $\Ldiff(x_0;\phi)$, hence
+\[
+-\log q_\phi(x_0)\le \Lprior(x_0)+\Lrecon(x_0;\phi)+\Ldiff(x_0;\phi).
+\]
+Taking $\E_{x_0\sim\pdata}[\cdot]$ and using the Gaussian KL identity
+$\KL{p(x_{i-1}\mid x_i,x_0)}{q_\phi(x_{i-1}\mid x_i)}
+=\frac{1}{2\sigma^2(i)}\|\mu(x_i,x_0,i)-\mu_\phi(x_i,i)\|_2^2$
+recovers the mean-matching objective $\Ldiff(\phi)$ of Section~\ref{sec:reverse}.
+\end{proof}
+
+\begin{remark}{Role of Three Terms}{ddpm-elbo-remark}
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item $\Lprior$: controlled by the noise schedule so that $p_L(\cdot\mid x_0)\approx\pprior$ and $\bpMarg{L}\approx \cN(0,\mathbf{I})$.
+    \item $\Lrecon$: likelihood at the first reverse step.
+    \item $\Ldiff$: matches learned reverse transitions $q_\phi(x_{i-1}\mid x_i)$ to forward posteriors $p(x_{i-1}\mid x_i,x_0)$.
+\end{itemize}
+\end{remark}
+
+% ============================================================
+\section{Practical Choices of Prediction and Loss}\label{sec:practical}
+% ============================================================
+
+\subsection{\texorpdfstring{$\varepsilon$}{epsilon}-Prediction Parameterization}
+
+From the forward closed form,
+\[
+x_i=\balpha_i x_0+\sqrt{1-\balpha_i^2}\,\varepsilon,\qquad
+\varepsilon\sim\cN(0,\mathbf{I}),
+\]
+the posterior mean can be rewritten as
+\[
+\mu(x_i,x_0,i)
+=\frac{1}{\alpha_i}\!\left(
+x_i-\frac{\beta_i}{\sqrt{1-\balpha_i^2}}\,\varepsilon
+\right).
+\]
+This motivates parameterizing
+\[
+\mu_\phi(x_i,i)
+=\frac{1}{\alpha_i}\!\left(
+x_i-\frac{\beta_i}{\sqrt{1-\balpha_i^2}}\,\varepsilon_\phi(x_i,i)
+\right),
+\]
+where $\varepsilon_\phi$ directly predicts injected noise.
+
+\begin{remark}{Noise-Detection View}{epsilon-view}
+The network is trained as a noise detector: infer the forward noise from a corrupted sample $x_i$, then use that estimate to form reverse denoising steps.
+\end{remark}
+
+\subsection{Simplified Objective}
+
+Under the above parameterization, the mean-matching objective is equivalent (up to constants and positive time-dependent weights) to weighted noise regression:
+\[
+\left\|
+\mu_\phi(x_i,i)-\mu(x_i,x_0,i)
+\right\|_2^2
+\propto
+\left\|
+\varepsilon_\phi(x_i,i)-\varepsilon
+\right\|_2^2.
+\]
+The commonly used simplified loss is
+\[
+\Lsimple(\phi)
+\triangleq
+\E_{i\sim\mathrm{Uniform}\{1,\dots,L\}}\,\E_{x_0\sim\pdata}\,\E_{\varepsilon\sim\cN(0,\mathbf{I})}
+\!\left[
+\left\|
+\varepsilon_\phi(x_i,i)-\varepsilon
+\right\|_2^2
+\right],
+\]
+where
+\[
+x_i=\balpha_i x_0+\sqrt{1-\balpha_i^2}\,\varepsilon.
+\]
+
+Because this is a least-squares problem, the optimal predictor at each $(x_i,i)$ is the conditional mean:
+\[
+\varepsilon_\phi^{*}(x_i,i)
+=\E_{x_0\sim \pdata(\cdot\mid x_i)}\!\left[\frac{x_i-\balpha_i x_0}{\sqrt{1-\balpha_i^2}}\right],
+\qquad x_i\sim \bpMarg{i},
+\]
+equivalently $\E_{x_0\sim\pdata,\,\varepsilon\sim\cN(0,\mathbf{I})}[\varepsilon\mid x_i]$ under the forward sampling
+$x_i=\balpha_i x_0+\sqrt{1-\balpha_i^2}\,\varepsilon$.
+Even though a single $x_i$ does not uniquely determine $x_0$, averaging over $\pdata(x_0\mid x_i)$ yields the MSE-optimal noise estimate.
+
+\subsection{\texorpdfstring{$x_0$}{x0}-Prediction Parameterization}
+
+An equivalent choice is to predict a clean sample directly:
+\[
+x_\phi(x_i,i)\approx x_0.
+\]
+Using Proposition~\ref{prop:reverse-posterior}, replace $x_0$ in the posterior mean by $x_\phi(x_i,i)$:
+\[
+\mu_\phi(x_i,i)
+=\frac{\alpha_i-\balpha_i^2/\alpha_i}{1-\balpha_i^2}\,x_i
++\frac{(1-\alpha_i^2)\balpha_i/\alpha_i}{1-\balpha_i^2}\,x_\phi(x_i,i).
+\]
+Therefore
+\[
+\mu_\phi(x_i,i)-\mu(x_i,x_0,i)
+=\frac{(1-\alpha_i^2)\balpha_i/\alpha_i}{1-\balpha_i^2}
+\big(x_\phi(x_i,i)-x_0\big),
+\]
+and the diffusion KL term is equivalent to weighted clean-sample regression:
+\[
+\Ldiff(\phi)
+=\sum_{i=2}^{L} w_i\,
+\E_{x_0\sim\pdata}\,\E_{x_i\sim p_i(\cdot\mid x_0)}
+\!\left[\|x_\phi(x_i,i)-x_0\|_2^2\right],
+\]
+for positive weights
+\[
+w_i
+=\frac{1}{2\sigma^2(i)}
+\left(
+\frac{(1-\alpha_i^2)\balpha_i/\alpha_i}{1-\balpha_i^2}
+\right)^2.
+\]
+Hence the least-squares optimal predictor is
+\[
+x_\phi^{*}(x_i,i)=\E[x_0\mid x_i].
+\]
+
+\subsection{Equivalence of Prediction Targets}
+
+The targets $(\mu,x_0,\varepsilon)$ are linearly equivalent. From
+\[
+x_i=\balpha_i x_0+\sqrt{1-\balpha_i^2}\,\varepsilon,
+\]
+we have
+\[
+x_0=\frac{x_i-\sqrt{1-\balpha_i^2}\,\varepsilon}{\balpha_i},
+\qquad
+\varepsilon=\frac{x_i-\balpha_i x_0}{\sqrt{1-\balpha_i^2}}.
+\]
+Hence prediction heads are bijectively related:
+\[
+x_\phi(x_i,i)
+=\frac{x_i-\sqrt{1-\balpha_i^2}\,\varepsilon_\phi(x_i,i)}{\balpha_i},
+\qquad
+\varepsilon_\phi(x_i,i)
+=\frac{x_i-\balpha_i x_\phi(x_i,i)}{\sqrt{1-\balpha_i^2}}.
+\]
+So one may train with either $x_0$-prediction or $\varepsilon$-prediction.
+
+% ============================================================
+\section{Sampling from a Trained DDPM}\label{sec:sampling}
+% ============================================================
+
+After training $q_\phi(x_{i-1}\mid x_i)$, generate samples by reverse-time recursion.
+Start from
+\[
+x_L\sim \pprior=\cN(0,\mathbf{I}),
+\]
+then for $i=L,L-1,\dots,1$, sample
+\[
+x_{i-1}
+=\mu_\phi(x_i,i)+\sigma(i)\,z_i,\qquad
+z_i\sim\cN(0,\mathbf{I}),
+\]
+with $z_1\equiv 0$ for the last step.
+
+\paragraph{(a) $\varepsilon$-prediction form.}
+Using $\mu_\phi(x_i,i)=\frac{1}{\alpha_i}\!\left(x_i-\frac{\beta_i}{\sqrt{1-\balpha_i^2}}\,\varepsilon_\phi(x_i,i)\right)$,
+\[
+x_{i-1}
+=\frac{1}{\alpha_i}\!\left(
+x_i-\frac{\beta_i}{\sqrt{1-\balpha_i^2}}\,\varepsilon_\phi(x_i,i)
+\right)+\sigma(i)\,z_i.
+\]
+
+\paragraph{(b) $x_0$-prediction form.}
+Using $x_\phi(x_i,i)$ instead of $\varepsilon_\phi$,
+\[
+x_{i-1}
+=\frac{\alpha_i-\balpha_i^2/\alpha_i}{1-\balpha_i^2}\,x_i
++\frac{(1-\alpha_i^2)\balpha_i/\alpha_i}{1-\balpha_i^2}\,x_\phi(x_i,i)
++\sigma(i)\,z_i.
+\]
+Both forms are equivalent under the linear map in the previous subsection.
+
+\begin{remark}{Denoise-Then-Re-noise View}{denoise-renoise-view}
+Each reverse step can be interpreted as:
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item \textbf{Denoise:} use the network prediction from $x_i$ (either $x_\phi$ or $\varepsilon_\phi$) to estimate the clean structure;
+    \item \textbf{Re-noise:} inject calibrated Gaussian uncertainty through $\sigma(i)z_i$ to obtain $x_{i-1}$.
+\end{itemize}
+This is exactly the DDPM posterior-sampling mechanism under the learned mean.
+\end{remark}
+
+\end{document}

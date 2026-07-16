@@ -1,0 +1,479 @@
+% !TEX program = xelatex
+% ============================================================
+%  流形优化笔记 — "北极甜虾(南半球版)"
+% ------------------------------------------------------------
+%  目录：
+%    §0  字体与文字
+%    §1  页面布局
+%    §2  工具宏包
+%    §3  颜色与文本高亮
+%    §4  超链接
+%    §5  数学宏 / 常用记号
+%    §6  章节标题样式
+%    §7  顶部标题框与横向导航目录
+%    §8  定理环境 (tcolorbox)
+%    §9  正文
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+
+% ============================================================
+% §0  字体与文字
+% ============================================================
+\usepackage{ctex}
+
+% ============================================================
+% §1  页面布局（与 convex optimization 一致）
+% ============================================================
+% 有 geometry 时使用 2.5cm 边距；无 geometry 时回退为 article 默认 A4 版心
+\IfFileExists{geometry.sty}{%
+  \usepackage[margin=2.5cm]{geometry}
+}{%
+  \PackageWarning{geometry}{未找到 geometry 宏包，已使用默认 A4 页边距。建议安装宏包 `geometry' 以获得 2.5cm 边距。}%
+}
+\usepackage{microtype}
+\linespread{1.08}
+
+
+% ============================================================
+% §2  工具宏包（集中加载）
+% ============================================================
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{soul}                         % \hl 底色高亮
+\usepackage{leftindex}                    % 左上/下标
+\usepackage{tikz}
+\usetikzlibrary{arrows,calc,positioning}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{fontawesome5}                 % 图标
+\usepackage{titlesec}                     % 章节样式
+
+
+% ============================================================
+% §3  颜色与文本高亮
+% ============================================================
+% ---- 基础色 ----
+\definecolor{mydarkblue}{rgb}{0.0,0.08,0.45}
+\definecolor{nicepink}  {RGB}{255,105,180}
+\definecolor{cardbg}    {RGB}{245,245,247}
+\definecolor{blue_new}  {RGB}{63,77,238}
+\definecolor{page_white}{RGB}{227,227,229}
+
+% ---- 高亮三色（文字 / 底色共用）----
+\definecolor{highlight}{HTML}{FCD66F}     % 黄  — 中性强调
+\definecolor{warning}  {HTML}{E57373}     % 红  — 警告
+\definecolor{info}     {HTML}{4DB6AC}     % 青  — 信息
+
+% ---- 导航盒配色（可删）----
+\definecolor{navblue}     {HTML}{0077b6}
+\definecolor{navcyan}     {HTML}{00b4d8}
+\definecolor{navdark}     {HTML}{023e8a}
+\definecolor{accentorange}{HTML}{fb8500}
+
+% ---- 高亮宏 ----
+\newcommand{\red}   [1]{{\color{OrangeRed}#1}}
+\newcommand{\tlight}[1]{\textcolor{warning}{#1}}           % 红字
+\newcommand{\tinfo} [1]{\textcolor{info}{#1}}              % 青字
+\newcommand{\bglight}[1]{\hl{#1}}                          % 黄底
+\newcommand{\cbox}[2]{\colorbox{#1}{\textcolor{black}{#2}}}% 任意色底
+\newcommand{\bgwarn}[1]{\cbox{warning}{#1}}
+\newcommand{\bginfo}[1]{\cbox{info}{#1}}
+
+
+% ============================================================
+% §4  超链接（放在多数宏包之后）
+% ============================================================
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks = true,
+    linkcolor  = mydarkblue,
+    citecolor  = mydarkblue,
+    urlcolor   = mydarkblue
+}
+
+
+% ============================================================
+% §5  数学宏 / 常用记号
+% ============================================================
+% ---- 短写 ----
+\newcommand{\wh}{\widehat}
+\newcommand{\wt}{\widetilde}
+\newcommand{\ov}{\overline}
+\renewcommand{\tilde}{\wt}
+\renewcommand{\hat}{\wh}
+\renewcommand{\d}{\mathrm{d}}
+\renewcommand{\i}{\mathbf{i}}
+\renewcommand{\*}{\leftindex^*}
+
+% ---- 数集 ----
+\newcommand{\N}{\mathbb{N}}  \newcommand{\R}{\mathbb{R}}
+\newcommand{\Q}{\mathbb{Q}}  \newcommand{\Z}{\mathbb{Z}}
+\newcommand{\C}{\mathbb{C}}
+
+% ---- 其他常用 ----
+\newcommand{\RHS}{\mathrm{RHS}}
+\newcommand{\LHS}{\mathrm{LHS}}
+\newcommand{\Tmat}{{\cal T}_{\mathrm{mat}}}
+\newcommand{\proj}{\mathrm{proj}}
+\newcommand{\supp}{\mathrm{supp}}
+\newcommand{\hal}{\mathsf{hal}}
+\newcommand{\gal}{\mathsf{gal}}
+\newcommand{\sh} {\mathsf{sh}}
+
+% ---- 概率 / 学习 ----
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\P\relax
+\DeclareMathOperator*{\P}{\mathbb{P}}
+\DeclareMathOperator*{\var}{Var}
+\DeclareMathOperator*{\D}{\mathcal{D}}
+\DeclareMathOperator*{\median}{median}
+\DeclareMathOperator*{\mean}{mean}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator {\OPT}{OPT}
+\DeclareMathOperator {\poly}{poly}
+
+% ---- 线性代数 / 一般运算 ----
+\DeclareMathOperator{\Proj}   {Proj}
+\DeclareMathOperator{\esssup} {ess\,sup}
+\DeclareMathOperator{\nnz}    {nnz}
+\DeclareMathOperator{\sparsity}{sparsity}
+\DeclareMathOperator{\rank}   {rank}
+\DeclareMathOperator{\diag}   {diag}
+\DeclareMathOperator{\dist}   {dist}
+\DeclareMathOperator{\cost}   {cost}
+\DeclareMathOperator{\vect}   {vec}
+\DeclareMathOperator{\tr}     {tr}
+\DeclareMathOperator{\dis}    {dis}
+\DeclareMathOperator{\cts}    {cts}
+
+% ---- 流形优化专用 ----
+\DeclareMathOperator{\grad}{grad}
+\DeclareMathOperator{\Hess}{Hess}
+\DeclareMathOperator{\Ret} {R}
+\DeclareMathOperator{\Tan} {T}
+
+% ---- 学习损失 ----
+\newcommand{\Aug} {\mathsf{Aug}}
+\newcommand{\DKL} {L_\mathrm{KL}}
+\newcommand{\Lsup}{\mathcal{L}_\mathrm{sup}}
+\newcommand{\Lreg}{\mathcal{L}_\mathrm{reg}}
+\renewcommand{\L} {\mathcal{L}}
+
+% ---- 粗体小写 ----
+\newcommand{\ba}{\mathbf{a}} \newcommand{\bb}{\mathbf{b}}
+\newcommand{\bc}{\mathbf{c}} \newcommand{\bd}{\mathbf{d}}
+\newcommand{\be}{\mathbf{e}} \newcommand{\bg}{\mathbf{g}}
+\newcommand{\bh}{\mathbf{h}} \newcommand{\bi}{\mathbf{i}}
+\newcommand{\bj}{\mathbf{j}} \newcommand{\bk}{\mathbf{k}}
+\newcommand{\bl}{\mathbf{l}} \newcommand{\bm}{\mathbf{m}}
+\newcommand{\bn}{\mathbf{n}} \newcommand{\bo}{\mathbf{o}}
+\newcommand{\bp}{\mathbf{p}} \newcommand{\bq}{\mathbf{q}}
+\newcommand{\br}{\mathbf{r}} \newcommand{\bs}{\mathbf{s}}
+\newcommand{\bt}{\mathbf{t}} \newcommand{\bu}{\mathbf{u}}
+\newcommand{\bv}{\mathbf{v}} \newcommand{\bw}{\mathbf{w}}
+\newcommand{\bx}{\mathbf{x}} \newcommand{\by}{\mathbf{y}}
+\newcommand{\bz}{\mathbf{z}}
+
+% ---- 粗体大写 ----
+\newcommand{\bA}{\mathbf{A}} \newcommand{\bB}{\mathbf{B}}
+\newcommand{\bC}{\mathbf{C}} \newcommand{\bD}{\mathbf{D}}
+\newcommand{\bE}{\mathbf{E}} \newcommand{\bF}{\mathbf{F}}
+\newcommand{\bG}{\mathbf{G}} \newcommand{\bH}{\mathbf{H}}
+\newcommand{\bI}{\mathbf{I}} \newcommand{\bJ}{\mathbf{J}}
+\newcommand{\bK}{\mathbf{K}} \newcommand{\bL}{\mathbf{L}}
+\newcommand{\bM}{\mathbf{M}} \newcommand{\bN}{\mathbf{N}}
+\newcommand{\bO}{\mathbf{O}} \newcommand{\bP}{\mathbf{P}}
+\newcommand{\bQ}{\mathbf{Q}} \newcommand{\bR}{\mathbf{R}}
+\newcommand{\bS}{\mathbf{S}} \newcommand{\bT}{\mathbf{T}}
+\newcommand{\bU}{\mathbf{U}} \newcommand{\bV}{\mathbf{V}}
+\newcommand{\bW}{\mathbf{W}} \newcommand{\bX}{\mathbf{X}}
+\newcommand{\bY}{\mathbf{Y}} \newcommand{\bZ}{\mathbf{Z}}
+
+% ---- 花体 ----
+\newcommand{\cA}{\mathcal{A}} \newcommand{\cB}{\mathcal{B}}
+\newcommand{\cC}{\mathcal{C}} \newcommand{\cD}{\mathcal{D}}
+\newcommand{\cE}{\mathcal{E}} \newcommand{\cF}{\mathcal{F}}
+\newcommand{\cG}{\mathcal{G}} \newcommand{\cH}{\mathcal{H}}
+\newcommand{\cI}{\mathcal{I}} \newcommand{\cJ}{\mathcal{J}}
+\newcommand{\cK}{\mathcal{K}} \newcommand{\cL}{\mathcal{L}}
+\newcommand{\cM}{\mathcal{M}} \newcommand{\cN}{\mathcal{N}}
+\newcommand{\cO}{\mathcal{O}} \newcommand{\cP}{\mathcal{P}}
+\newcommand{\cQ}{\mathcal{Q}} \newcommand{\cR}{\mathcal{R}}
+\newcommand{\cS}{\mathcal{S}} \newcommand{\cT}{\mathcal{T}}
+\newcommand{\cU}{\mathcal{U}} \newcommand{\cV}{\mathcal{V}}
+\newcommand{\cW}{\mathcal{W}} \newcommand{\cX}{\mathcal{X}}
+\newcommand{\cY}{\mathcal{Y}} \newcommand{\cZ}{\mathcal{Z}}
+
+
+% ============================================================
+% §6  章节标题样式
+% ============================================================
+\titleformat{\section}
+  {\large\bfseries\color{mydarkblue}}{\thesection}{0.5em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+
+\titleformat{\subsection}
+  {\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{1ex}{0.5ex}
+
+
+% ============================================================
+% §7  顶部标题框 + 横向导航目录
+% ============================================================
+% ---- 紧凑标题框（\makecompacttitle 调用）----
+\makeatletter
+\newcommand{\makecompacttitle}{%
+    \begin{tcolorbox}[
+        colback=mydarkblue!5, colframe=mydarkblue!10,
+        arc=3pt, boxrule=0.5pt,
+        left=5pt, right=5pt, top=5pt, bottom=5pt
+    ]
+        {\large\bfseries \@title}\hfill{\small \@author}\\[-2pt]
+        {\tiny\color{gray} \@date \hfill Manifold Optimization Notes}
+    \end{tcolorbox}
+    \vspace{-1em}
+}
+\makeatother
+
+% ---- 导航小格子（用于横向目录）----
+\newtcolorbox{tabNavBoxSmall}[1][]{
+    enhanced,
+    colframe=white, colback=gray!5, coltext=black!80,
+    fontupper=\sffamily\small\bfseries,
+    arc=1.5mm, boxrule=0pt, bottomrule=2pt,
+    left=2mm, right=2mm, top=1.5mm, bottom=1.5mm,
+    #1
+}
+
+% ---- 横向目录：增删章节时只需改动此处 ----
+\newcommand{\horizontalTOC}{%
+    \begin{center}
+    \begin{tcbraster}[
+        raster columns=2, raster width=\linewidth,
+        raster column skip=1mm, raster equal height
+    ]
+        \begin{tabNavBoxSmall}\ 二阶收缩映射的动机与定义\end{tabNavBoxSmall}
+        \begin{tabNavBoxSmall}\ 一些例子和性质\end{tabNavBoxSmall}
+    \end{tcbraster}
+    \vspace{-2.5pt}%
+    \noindent\textcolor{gray!30}{\rule{\linewidth}{1pt}}
+    \end{center}
+    \vspace{2em}
+}
+
+% ---- 可跳转单元格（备用：\navbox{章号}{文字}）----
+\newcommand{\navbox}[2]{%
+    \hyperlink{section.#1}{%
+        \begin{tcolorbox}[
+            width=\linewidth, enhanced, center upper,
+            colback=white, colframe=mydarkblue!20,
+            arc=2pt, boxrule=0.8pt,
+            top=2pt, bottom=2pt, left=1pt, right=1pt,
+            fontupper=\tiny\bfseries, colupper=mydarkblue
+        ]#2\end{tcolorbox}%
+    }%
+}
+
+
+% ============================================================
+% §8  定理环境（tcolorbox，共用计数器）
+% ============================================================
+\tcbset{
+  mytheo/.style={
+    enhanced, breakable,
+    colback=#1!5!white, colframe=#1!70!black,
+    coltitle=white, fonttitle=\bfseries\small,
+    boxrule=0.6pt, arc=3pt,
+    left=5pt, right=5pt, top=10pt, bottom=5pt,
+    attach boxed title to top left={yshift*=-\tcboxedtitleheight/2, xshift=2mm},
+    boxed title style={
+      colback=#1!80!black, colframe=#1!80!black,
+      boxrule=0pt, arc=2pt
+    }
+  }
+}
+
+% ---- 所有定理类环境共用 theorem 计数器（顺编号）----
+%  语法：\begin{<env>}{标题}{编号}  …  \end{<env>}
+%  引用：\ref{<prefix>:编号}
+\newtcbtheorem[auto counter]         {theorem}    {定理}{mytheo=WildStrawberry}{thm}
+\newtcbtheorem[use counter from=theorem]{definition} {定义}{mytheo=NavyBlue     }{def}
+\newtcbtheorem[use counter from=theorem]{example}    {例子}{mytheo=YellowOrange }{ex}
+\newtcbtheorem[use counter from=theorem]{problem}    {问题}{mytheo=YellowOrange }{prob}
+\newtcbtheorem[use counter from=theorem]{remark}     {注解}{mytheo=Periwinkle   }{rem}
+\newtcbtheorem[use counter from=theorem]{proposition}{命题}{mytheo=JungleGreen  }{prop}
+\newtcbtheorem[use counter from=theorem]{lemma}      {引理}{mytheo=ForestGreen  }{lem}
+\newtcbtheorem[use counter from=theorem]{corollary}  {推论}{mytheo=BrickRed     }{cor}
+\newtcbtheorem[use counter from=theorem]{fact}       {事实}{mytheo=YellowGreen  }{fact}
+\newtcbtheorem[use counter from=theorem]{assumption} {假设}{mytheo=Plum         }{as}
+
+
+% ============================================================
+% §9  正文
+% ============================================================
+\title{二阶收缩映射}
+\author{北极甜虾(南半球版)}
+\date{\today}
+
+\begin{document}
+
+\makecompacttitle
+\horizontalTOC
+
+\vspace{-15mm}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{image33.png}
+\end{figure}
+
+\section{二阶收缩映射的动机与定义}
+在流形优化中，我们用\textbf{收缩映射（Retraction）}$R$ 将切空间中的步长 $s \in T_x\cM$ 映射回流形上：
+\[
+x^+ = R_x(s).
+\]
+因此，理解\textbf{拉回映射（Pullback）}
+\[
+\hat f_x : T_x\cM \to \R,\qquad \hat f_x(s) = (f\circ R_x)(s)
+\]
+在 $s=0$ 附近的二阶结构，是构造/分析二阶算法, 比如Newton、Trust-region 等的关键。
+
+\medskip
+令 $v\in T_x\cM$，考虑\textbf{收缩曲线(Retraction Curve)}
+\[
+c(t) = R_x(tv), \qquad c(0)=x,\ \ c'(0)=v.
+\]
+由上一节沿曲线的二阶泰勒展开式直接得到：
+\begin{align*}
+f(R_x(tv))
+= &~f(x)
++ t\langle \grad f(x), v\rangle_x
++ \frac{t^2}{2}\langle \Hess f(x)[v], v\rangle_x
+\\&~+ \frac{t^2}{2}\langle \grad f(x), c''(0)\rangle_x
++ O(t^3).
+\end{align*}
+其中 $c''(0)=\frac{D}{dt}c'(0)$ 是曲线 $c$ 在 $t=0$ 的\textbf{内蕴加速度(Intrinsic Acceleration)}。
+
+\medskip
+注意最后一项 $\frac{t^2}{2}\langle \grad f(x), c''(0)\rangle_x$ 是不希望出现的，因为它依赖于所选收缩映射 $R$,而不是仅依赖于流形几何与 $f$ 的二阶信息）。
+
+该项在两类情形会消失：
+\[
+\text{(i) }\grad f(x)=0\quad\text{或}\quad \text{(ii) }c''(0)=0.
+\]
+前者对应“临界点附近”的分析,后者提示我们可以对收缩映射提出更强的几何要求，从而在任意点消除该项。
+
+\begin{definition}{二阶收缩映射（second-order retraction）}{5.42}
+令 $\cM$ 是黎曼流形。称收缩映射 $R$ 为\textbf{二阶收缩映射（second-order retraction）}，若对任意 $x\in \cM$ 与任意 $v\in T_x\cM$，收缩曲线
+\[
+c(t)=R_x(tv)
+\]
+在 $t=0$ 处满足的内蕴加速度为0：
+\[
+c''(0)=0.
+\]
+\end{definition}
+
+\section{一些例子和性质}
+\begin{example}{球面上的归一化收缩映射是二阶的}{5.43}
+在单位球面 $S^{d-1}$ 上考虑常用收缩映射
+\[
+R_x(v)=\frac{x+v}{\|x+v\|}.
+\]
+令 $c(t)=R_x(tv)$。计算可得其（欧几里得）二阶导满足 $$\ddot c(0)=-\|v\|^2 x,$$ 它与 $T_xS^{d-1}$ 正交。
+因此内蕴加速度是切向投影：
+\[
+c''(0)=\Proj_x(\ddot c(0))=\Proj_x(-\|v\|^2 x)=0.
+\]
+故该收缩映射是二阶收缩映射。
+\end{example}
+
+\begin{proposition}{两种重要特例}{5.44}
+设 $\cM$ 是黎曼流形，$R$ 是任意收缩映射，$f:\cM\to \R$ 光滑，$\hat f_x=f\circ R_x$.
+\begin{enumerate}
+\item[(1)] \textbf{临界点处（任意收缩映射都能用）}：若 $x$ 是临界点（$\grad f(x)=0$），则
+\begin{align*}
+f(R_x(s)) = f(x) + \frac{1}{2}\langle \Hess f(x)[s], s\rangle_x + O(\|s\|_x^3).
+\end{align*}
+\item[(2)] \textbf{二阶收缩映射}：若 $R$ 是二阶收缩映射，则对任意 $x\in\cM$ 都有
+\begin{align*}
+\hspace{-12.3mm}f(R_x(s))
+= f(x) + \langle \grad f(x), s\rangle_x
++ \frac{1}{2}\langle \Hess f(x)[s], s\rangle_x
++ O(\|s\|_x^3).
+\end{align*}
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+将上一节的收缩曲线展开式写成 $s=t v$ 的形式即可。
+\begin{itemize}
+\item 若 $\grad f(x)=0$，则加速度项自动消失，得到结论 (1)。
+\item 若 $R$ 二阶，则 $c''(0)=0$，从而加速度项消失，得到结论 (2)。
+\end{itemize}
+并将 $O(t^3)$ 重写为 $O(\|s\|_x^3)$（因 $s=t v$ 且局部等价）。
+\end{proof}
+
+\medskip
+命题~\ref{prop:5.44} 说明\textbf{在临界点附近}，即便只用一阶收缩映射，二阶展开也不会被加速度项影响；
+而若我们拥有\textbf{二阶收缩映射}，则\textbf{在任意点}都可以直接把 $\hat f_x$ 当作外在空间的函数来做标准二阶近似。
+
+\begin{proposition}{用 pullback 在切空间中计算黎曼 Hessian}{5.45}
+若 $R$ 是二阶收缩映射，或 $x$ 是临界点（$\grad f(x)=0$），则
+\[
+\Hess f(x) \;=\; \Hess(f\circ R_x)(0),
+\]
+右侧是定义在欧式空间 $T_x\cM$ 上的\textbf{经典 Hessian}。
+\end{proposition}
+
+\begin{proof}
+记 $\hat f_x(s)=f(R_x(s))$。
+\begin{itemize}
+\item 若 $R$ 二阶，由命题~\ref{prop:5.44}(2)：
+\[
+\hat f_x(s)= f(x)+\langle \grad f(x), s\rangle_x + \frac12\langle \Hess f(x)[s],s\rangle_x + O(\|s\|_x^3).
+\]
+在欧式空间 $T_x\cM$ 对 $s$ 求导（并用 $\Hess f(x)$ 自伴随性）：
+\[
+\grad \hat f_x(s) = \grad f(x) + \Hess f(x)[s] + O(\|s\|_x^2),
+\]
+\[
+\Hess \hat f_x(s)[\dot s] = \Hess f(x)[\dot s] + O(\|s\|_x\|\dot s\|_x).
+\]
+令 $s=0$，得 $\Hess \hat f_x(0)=\Hess f(x)$。
+\item 若 $\grad f(x)=0$，同理由命题~\ref{prop:5.44}(1) 出发即可。
+\end{itemize}
+\end{proof}
+
+\begin{remark}{临界点处 Hessian 对度量的不变性}{}
+临界点与（一阶）收缩映射的定义不依赖于黎曼度量。
+命题~\ref{prop:5.45} 进一步表明：在临界点 $x$ 处，$\Hess f(x)$ 对所选黎曼度量的依赖只通过切空间上的内积 $\langle\cdot,\cdot\rangle_x$ 体现。
+特别地，$\Hess f(x)$ 的符号结构（signature）（正/零/负特征值的个数）与我们选取的黎曼度量无关。
+\end{remark}
+
+\begin{remark}{二阶收缩映射的加速度保持性质, Exercise 5.46}{}
+固定 $x\in\cM$，取切空间曲线 $w:I\to T_x\cM$，满足 $w(0)=0$，并诱导流形曲线
+\[
+c(t)=R_x(w(t)).
+\]
+显然有 $c(0)=x$ 且 $c'(0)=w'(0)$。若 $R$ 为二阶收缩映射，则还有
+\[
+c''(0)=w''(0).
+\]
+\textbf{一个直接推论}：给定任意 $u,v\in T_x\cM$，可以构造曲线
+\[
+c(t)=R_x\!\left(tu+\frac{t^2}{2}v\right)
+\]
+使得 $c'(0)=u$ 且 $c''(0)=v$。这从侧面解释了二阶收缩映射为何能对齐切空间中的二阶信息。
+\end{remark}
+
+\nocite{boumal2023introduction}
+\bibliography{ref}
+\bibliographystyle{alpha}
+
+\end{document}

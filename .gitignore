@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# LaTeX intermediate files
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.bbl
+*.blg
+*.nav
+*.snm
+*.vrb
+
+# Editor backups
+*~
+*.swp
+*.swo
