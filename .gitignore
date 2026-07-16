@@ -15,6 +15,17 @@
 *.snm
 *.vrb
 
+# Keep only PDFs under pdf/; ignore stray build junk at repo root
+/*.pdf
+/*.aux
+/*.log
+/*.out
+
+# Ignore LaTeX intermediates created inside tex/
+tex/*.aux
+tex/*.log
+tex/*.out
+
 # Editor backups
 *~
 *.swp

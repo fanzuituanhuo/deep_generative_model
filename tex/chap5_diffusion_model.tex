@@ -301,12 +301,25 @@ DDPM / VP
 % ============================================================
 
 \begin{definition}{Forward Diffusion Process}{forward-diffusion}
-A score-based diffusion model fixes an SDE
+Let the data variable $X_t$ take values in $\R^D$.  A score-based diffusion
+model fixes a forward SDE on $[0,T]$
 \[
   \d X_t=f(X_t,t)\,\d t+g(t)\,\d W_t,
   \qquad X_0\sim p_0=\pdata,
 \]
-whose terminal marginal $p_T$ is close to a tractable prior
+where
+\begin{itemize}[nosep]
+  \item $f:\R^D\times[0,T]\to\R^D$ is the \emph{drift coefficient}, a
+        vector-valued mapping specifying the deterministic part of the flow;
+  \item $g:[0,T]\to\R$ is a scalar \emph{diffusion coefficient} depending only
+        on time, controlling the magnitude of the injected noise (more generally
+        $g$ may be matrix-valued, $g:[0,T]\to\R^{D\times D}$);
+  \item $W_t$ is a $D$-dimensional standard Wiener process (Brownian motion),
+        i.e.\ a process with $W_0=0$, independent Gaussian increments
+        $W_{t+\Delta t}-W_t\sim\cN(0,\Delta t\,I_D)$, and almost surely
+        continuous sample paths.
+\end{itemize}
+The terminal marginal $p_T$ is chosen to be close to a tractable prior
 $\pprior$, usually an isotropic Gaussian.
 \end{definition}
 
