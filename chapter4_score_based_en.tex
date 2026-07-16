@@ -1,0 +1,668 @@
+% !TEX program = xelatex
+% ============================================================
+%  Deep Generative Models — Chapter 4: Score-Based Perspective
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+% §0  Fonts
+% ============================================================
+\IfFileExists{ctex.sty}{\usepackage{ctex}}{}
+
+% ============================================================
+% §1  Page layout
+% ============================================================
+\IfFileExists{geometry.sty}{%
+  \usepackage[margin=2.5cm]{geometry}
+}{%
+  \PackageWarning{geometry}{geometry package not found; using default A4 margins. Install `geometry' for 2.5cm margins.}%
+}
+\usepackage{microtype}
+\linespread{1.08}
+
+% ============================================================
+% §2  Packages
+% ============================================================
+\usepackage{amsmath,amssymb,amsthm}
+\renewcommand{\proofname}{Proof}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{soul}
+\usepackage{leftindex}
+\usepackage{tikz}
+\usetikzlibrary{arrows,calc,positioning}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{fontawesome5}
+\usepackage{titlesec}
+
+% ============================================================
+% §3  Colors
+% ============================================================
+\definecolor{mydarkblue}{rgb}{0.0,0.08,0.45}
+\definecolor{nicepink}  {RGB}{255,105,180}
+\definecolor{cardbg}    {RGB}{245,245,247}
+\definecolor{blue_new}  {RGB}{63,77,238}
+\definecolor{page_white}{RGB}{227,227,229}
+\definecolor{highlight} {HTML}{FCD66F}
+\definecolor{warning}   {HTML}{E57373}
+\definecolor{info}      {HTML}{4DB6AC}
+\definecolor{navblue}     {HTML}{0077b6}
+\definecolor{navcyan}     {HTML}{00b4d8}
+\definecolor{navdark}     {HTML}{023e8a}
+\definecolor{accentorange}{HTML}{fb8500}
+
+\newcommand{\red}   [1]{{\color{OrangeRed}#1}}
+\newcommand{\tlight}[1]{\textcolor{warning}{#1}}
+\newcommand{\tinfo} [1]{\textcolor{info}{#1}}
+\newcommand{\bglight}[1]{\hl{#1}}
+\newcommand{\cbox}[2]{\colorbox{#1}{\textcolor{black}{#2}}}
+\newcommand{\bgwarn}[1]{\cbox{warning}{#1}}
+\newcommand{\bginfo}[1]{\cbox{info}{#1}}
+
+% ============================================================
+% §4  Hyperlinks
+% ============================================================
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks = true,
+    linkcolor  = mydarkblue,
+    citecolor  = mydarkblue,
+    urlcolor   = mydarkblue
+}
+
+% ============================================================
+% §5  Math macros
+% ============================================================
+\newcommand{\wh}{\widehat}
+\newcommand{\wt}{\widetilde}
+\newcommand{\ov}{\overline}
+\renewcommand{\tilde}{\wt}
+\renewcommand{\hat}{\wh}
+\renewcommand{\d}{\mathrm{d}}
+
+\newcommand{\N}{\mathbb{N}}  \newcommand{\R}{\mathbb{R}}
+\newcommand{\Q}{\mathbb{Q}}  \newcommand{\Z}{\mathbb{Z}}
+\newcommand{\C}{\mathbb{C}}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\P\relax
+\DeclareMathOperator*{\P}{\mathbb{P}}
+\DeclareMathOperator*{\var}{Var}
+\DeclareMathOperator{\tr}{tr}
+
+\newcommand{\pdata}{p_{\mathrm{data}}}
+\newcommand{\Ephi}{E_{\phi}}
+\newcommand{\Zphi}{Z_{\phi}}
+\newcommand{\psigma}{p_{\sigma}}
+
+% ============================================================
+% §6  Section heading style
+% ============================================================
+\titleformat{\section}
+  {\large\bfseries\color{mydarkblue}}{\thesection}{0.5em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+
+\titleformat{\subsection}
+  {\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{1ex}{0.5ex}
+
+% ============================================================
+% §7  Compact title + horizontal TOC
+% ============================================================
+\makeatletter
+\newcommand{\makecompacttitle}{%
+    \begin{tcolorbox}[
+        colback=mydarkblue!5, colframe=mydarkblue!10,
+        arc=3pt, boxrule=0.5pt,
+        left=5pt, right=5pt, top=5pt, bottom=5pt
+    ]
+        {\large\bfseries \@title}\hfill{\small \@author}\\[-2pt]
+        {\tiny\color{gray} \@date \hfill Deep Generative Models Notes}
+    \end{tcolorbox}
+    \vspace{-1em}
+}
+\makeatother
+
+\newtcolorbox{tabNavBoxSmall}[1][]{
+    enhanced,
+    colframe=white, colback=gray!5, coltext=black!80,
+    fontupper=\sffamily\small\bfseries,
+    arc=1.5mm, boxrule=0pt, bottomrule=2pt,
+    left=2mm, right=2mm, top=1.5mm, bottom=1.5mm,
+    #1
+}
+
+\newcommand{\horizontalTOCScore}{%
+    \begin{center}
+    \begin{tcbraster}[
+        raster columns=3, raster width=\linewidth,
+        raster column skip=1mm, raster equal height
+    ]
+        \begin{tabNavBoxSmall}\hyperref[sec:ebm]{\ Energy-Based Models}\end{tabNavBoxSmall}
+        \begin{tabNavBoxSmall}\hyperref[sec:score-based]{\ Score-Based Models}\end{tabNavBoxSmall}
+        \begin{tabNavBoxSmall}\hyperref[sec:dsm]{\ Denoising Score Matching}\end{tabNavBoxSmall}
+    \end{tcbraster}
+    \vspace{-2.5pt}%
+    \noindent\textcolor{gray!30}{\rule{\linewidth}{1pt}}
+    \end{center}
+    \vspace{1em}
+}
+
+% ============================================================
+% §8  Theorem environments (tcolorbox)
+% ============================================================
+\tcbset{
+  mytheo/.style={
+    enhanced, breakable,
+    colback=#1!5!white, colframe=#1!70!black,
+    coltitle=white, fonttitle=\bfseries\small,
+    boxrule=0.6pt, arc=3pt,
+    left=5pt, right=5pt, top=10pt, bottom=5pt,
+    attach boxed title to top left={yshift*=-\tcboxedtitleheight/2, xshift=2mm},
+    boxed title style={
+      colback=#1!80!black, colframe=#1!80!black,
+      boxrule=0pt, arc=2pt
+    }
+  }
+}
+
+\newtcbtheorem[auto counter]{theorem}    {Theorem}{mytheo=WildStrawberry}{thm}
+\newtcbtheorem[auto counter]{definition} {Definition}{mytheo=NavyBlue  }{def}
+\newtcbtheorem[auto counter]{example}    {Example}{mytheo=YellowOrange }{ex}
+\newtcbtheorem[auto counter]{remark}     {Remark}{mytheo=Periwinkle    }{rem}
+\newtcbtheorem[auto counter]{proposition}{Proposition}{mytheo=JungleGreen}{prop}
+\newtcbtheorem[auto counter]{lemma}      {Lemma}{mytheo=ForestGreen  }{lem}
+\newtcbtheorem[auto counter]{corollary}  {Corollary}{mytheo=BrickRed   }{cor}
+\newtcbtheorem[auto counter]{fact}       {Fact}{mytheo=YellowGreen  }{fact}
+\newtcbtheorem[auto counter]{assumption} {Assumption}{mytheo=Plum     }{as}
+
+\tcolorboxenvironment{proof}{
+  blanker, breakable, left=4pt, right=4pt, top=3pt, bottom=3pt,
+  borderline west={2pt}{0pt}{gray!50}
+}
+
+% ============================================================
+% §9  Body
+% ============================================================
+\title{Chapter 4: Score-Based Perspective}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\makecompacttitle
+\horizontalTOCScore
+
+\begin{center}
+  \includegraphics[width=\linewidth]{6b4f2c12-287c-4f07-8b4c-71a8d7b20b1c.png}
+\end{center}
+\vspace{0.5em}
+
+% ============================================================
+\section{Energy-Based Models}\label{sec:ebm}
+% ============================================================
+
+\begin{definition}{Energy-Based Model (EBM)}{ebm-def}
+Let $x \in \R^D$ be a data point. An energy-based model defines the density
+\[
+p_{\phi}(x)=\frac{1}{\Zphi}\exp\!\big(-\Ephi(x)\big),\qquad
+\Zphi=\int \exp\!\big(-\Ephi(x)\big)\,\d x.
+\]
+Here $\Ephi:\R^D\to\R$ is the energy function parameterized by a neural network.
+\end{definition}
+
+The lower the energy, the higher the probability. Since all probability mass must sum to one, lowering one region's energy necessarily redistributes mass globally across the whole space.
+
+\subsection{Why MLE Is Intractable in EBM}
+
+For data distribution $\pdata$, maximum likelihood learning minimizes
+\begin{align*}
+\mathcal{L}_{\mathrm{MLE}}(\phi)
+&= -\E_{x\sim \pdata}\big[\log p_{\phi}(x)\big] \\
+&= \E_{x\sim \pdata}\big[\Ephi(x)\big]+\log \int \exp\!\big(-\Ephi(x)\big)\,\d x.
+\end{align*}
+The first term decreases energies on real data, while the second term is the normalization penalty. In high dimension, $\log \Zphi$ is generally intractable.
+
+\subsection{Score Function}
+
+\begin{definition}{Score Function}{score-def}
+For a density $p(x)$, its score function is
+\[
+s(x)\triangleq \nabla_x \log p(x),\qquad s:\R^D\to\R^D.
+\]
+\end{definition}
+
+The vector $s(x)$ points toward directions of higher probability.
+
+\begin{remark}{Why Score Is Useful}{score-why}
+Suppose $p(x)=\tilde p(x)/Z$ with constant $Z=\int \tilde p(x)\,\d x$. Then
+\[
+\nabla_x\log p(x)
+=\nabla_x\log \tilde p(x)-\nabla_x\log Z
+=\nabla_x\log \tilde p(x).
+\]
+So the score does not depend on the normalization constant.
+\end{remark}
+
+\begin{proposition}{Complete Representation via Score}{complete-rep}
+Let $x_0$ be a reference point. If $s(x)=\nabla_x\log p(x)$, then
+\[
+\log p(x)
+=\log p(x_0)+\int_{0}^{1}
+s\!\big(x_0+t(x-x_0)\big)^\top (x-x_0)\,\d t.
+\]
+\end{proposition}
+
+\begin{proof}
+Define the line $\gamma(t)=x_0+t(x-x_0)$ for $t\in[0,1]$, so $\gamma(0)=x_0$, $\gamma(1)=x$, and $\gamma'(t)=x-x_0$. By the chain rule,
+\[
+\frac{\d}{\d t}\log p(\gamma(t))
+=\nabla_x\log p(\gamma(t))^\top \gamma'(t)
+=s(\gamma(t))^\top (x-x_0).
+\]
+Integrating both sides over $t\in[0,1]$ and applying the fundamental theorem of calculus to the left-hand side,
+\[
+\log p(x)-\log p(x_0)
+=\int_0^1 \frac{\d}{\d t}\log p(\gamma(t))\,\d t
+=\int_0^1 s\!\big(x_0+t(x-x_0)\big)^\top (x-x_0)\,\d t,
+\]
+which is the claimed identity.
+\end{proof}
+
+This identity shows that modeling the score is as expressive as modeling the density itself.
+
+\subsection{Training via Score Matching}
+
+The score matching objective is
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+\triangleq
+\frac12 \E_{x\sim \pdata}
+\left\|
+\nabla_x\log p_{\phi}(x)-\nabla_x\log \pdata(x)
+\right\|_2^2.
+\]
+
+Although $\pdata$ is unknown, one can use the tractable Hyv\"arinen form:
+
+\begin{proposition}{Hyv\"arinen's Identity (Energy-Based Form)}{hyvarinen-ebm}
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+=
+\E_{x\sim \pdata}
+\left[
+-\tr\!\big(\nabla_x^2 \Ephi(x)\big)
++\frac12\|\nabla_x \Ephi(x)\|_2^2
+\right]+C,
+\]
+where $C=\frac12\E_{x\sim\pdata}\|\nabla_x\log\pdata(x)\|_2^2$ does not depend on $\phi$.
+\end{proposition}
+
+\begin{proof}
+Expand the square in the score matching objective:
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+=\frac12\E_{x\sim\pdata}\|\nabla_x\log p_{\phi}(x)\|_2^2
+-\E_{x\sim\pdata}\big[\nabla_x\log p_{\phi}(x)^\top \nabla_x\log\pdata(x)\big]
++C,
+\]
+with $C$ as above. For the cross term, since $\pdata(x)\nabla_x\log\pdata(x)=\nabla_x\pdata(x)$,
+\[
+\E_{x\sim\pdata}\big[\nabla_x\log p_{\phi}(x)^\top \nabla_x\log\pdata(x)\big]
+=\int \nabla_x\log p_{\phi}(x)^\top \nabla_x\pdata(x)\,\d x
+=\sum_{i=1}^{D}\int \partial_i\log p_{\phi}(x)\,\partial_i \pdata(x)\,\d x.
+\]
+Assuming $\pdata(x)\to 0$ as $\|x\|\to\infty$ so that boundary terms vanish, integrate each term by parts in $x_i$:
+\[
+\int \partial_i\log p_{\phi}(x)\,\partial_i \pdata(x)\,\d x
+=-\int \pdata(x)\,\partial_i^2\log p_{\phi}(x)\,\d x.
+\]
+Summing over $i$,
+\[
+\E_{x\sim\pdata}\big[\nabla_x\log p_{\phi}(x)^\top \nabla_x\log\pdata(x)\big]
+=-\E_{x\sim\pdata}\big[\tr(\nabla_x^2\log p_{\phi}(x))\big].
+\]
+Since $\log p_{\phi}(x)=-\Ephi(x)-\log \Zphi$, we have $\nabla_x^2\log p_{\phi}(x)=-\nabla_x^2\Ephi(x)$, so the cross term equals $\E_{x\sim\pdata}[\tr(\nabla_x^2\Ephi(x))]$. Substituting back,
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+=\frac12\E_{x\sim\pdata}\|\nabla_x\Ephi(x)\|_2^2
+-\E_{x\sim\pdata}[\tr(\nabla_x^2\Ephi(x))]+C,
+\]
+which is the claimed identity.
+\end{proof}
+
+This removes the partition function and avoids model sampling in training, but computing $\tr(\nabla_x^2 \Ephi(x))$ is still expensive in high dimension.
+
+\subsection{Langevin Sampling}
+
+Given an energy model, discrete-time Langevin dynamics is
+\[
+x_{n+1}=x_n-\eta\nabla_x\Ephi(x_n)+\sqrt{2\eta}\,\xi_n,\qquad \xi_n\sim\mathcal{N}(0,\mathbf{I}).
+\]
+Using $\nabla_x\log p_{\phi}(x)=-\nabla_x\Ephi(x)$, this is equivalently
+\[
+x_{n+1}=x_n+\eta\nabla_x\log p_{\phi}(x_n)+\sqrt{2\eta}\,\xi_n.
+\]
+
+As $\eta\to 0$, it converges to the Langevin SDE
+\[
+\d x(t)=\nabla_x\log p_{\phi}(x(t))\,\d t+\sqrt{2}\,\d w(t),
+\]
+where $w(t)$ is standard Brownian motion. The update above is exactly its Euler--Maruyama discretization.
+
+\begin{remark}{Challenge}{langevin-challenge}
+In high-dimensional, multi-modal distributions with many isolated modes, Langevin dynamics can mix very slowly and may spend long time in only a subset of high-probability regions.
+\end{remark}
+
+% ============================================================
+\section{From Energy-Based to Score-Based Models}\label{sec:score-based}
+% ============================================================
+
+\begin{definition}{Direct Score Modeling}{direct-score}
+Instead of parameterizing an energy, we directly learn a neural score network
+\[
+s_{\phi}(x)\approx s(x)\triangleq \nabla_x\log \pdata(x),\qquad x\in\R^D.
+\]
+The objective is
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+\triangleq
+\frac12 \E_{x\sim\pdata}\|s_{\phi}(x)-s(x)\|_2^2.
+\]
+\end{definition}
+
+\subsection{Tractable Score Matching}
+
+A tractable objective with the same minimizer is given by the following generalization of Proposition~\ref{prop:hyvarinen-ebm} to an arbitrary vector field $s_{\phi}$ (not necessarily a gradient of a scalar potential).
+
+\begin{proposition}{Hyv\"arinen's Identity (General Score Form)}{hyvarinen-general}
+\[
+\tilde{\mathcal{L}}_{\mathrm{SM}}(\phi)
+=
+\E_{x\sim\pdata}
+\left[
+\tr\!\big(\nabla_x s_{\phi}(x)\big)
++\frac12\|s_{\phi}(x)\|_2^2
+\right]
+\]
+satisfies
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)=\tilde{\mathcal{L}}_{\mathrm{SM}}(\phi)+C,
+\]
+where $C=\frac12\E_{x\sim\pdata}\|s(x)\|_2^2$ is independent of $\phi$.
+\end{proposition}
+
+\begin{proof}
+Expand the square in $\mathcal{L}_{\mathrm{SM}}(\phi)=\frac12\E_{x\sim\pdata}\|s_{\phi}(x)-s(x)\|_2^2$:
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+=\frac12\E_{x\sim\pdata}\|s_{\phi}(x)\|_2^2
+-\E_{x\sim\pdata}\big[s_{\phi}(x)^\top s(x)\big]+C.
+\]
+Since $s(x)=\nabla_x\log\pdata(x)$ and $\pdata(x)\nabla_x\log\pdata(x)=\nabla_x\pdata(x)$,
+\[
+\E_{x\sim\pdata}\big[s_{\phi}(x)^\top s(x)\big]
+=\int s_{\phi}(x)^\top \nabla_x\pdata(x)\,\d x
+=\sum_{i=1}^{D}\int s_{\phi,i}(x)\,\partial_i \pdata(x)\,\d x,
+\]
+where $s_{\phi,i}$ is the $i$-th component of $s_{\phi}$. Assuming $\pdata(x)\to0$ as $\|x\|\to\infty$ so boundary terms vanish, integrate each term by parts in $x_i$:
+\[
+\int s_{\phi,i}(x)\,\partial_i\pdata(x)\,\d x
+=-\int \pdata(x)\,\partial_i s_{\phi,i}(x)\,\d x.
+\]
+Summing over $i$ gives $\sum_i \partial_i s_{\phi,i}(x)=\tr(\nabla_x s_{\phi}(x))$ (the divergence of $s_\phi$), so
+\[
+\E_{x\sim\pdata}\big[s_{\phi}(x)^\top s(x)\big]
+=-\E_{x\sim\pdata}\big[\tr(\nabla_x s_{\phi}(x))\big].
+\]
+Substituting back,
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+=\E_{x\sim\pdata}\Big[\tr(\nabla_x s_{\phi}(x))+\frac12\|s_{\phi}(x)\|_2^2\Big]+C
+=\tilde{\mathcal{L}}_{\mathrm{SM}}(\phi)+C.
+\]
+This matches Proposition~\ref{prop:hyvarinen-ebm} in the special case $s_{\phi}(x)=-\nabla_x\Ephi(x)$, where $\tr(\nabla_x s_{\phi}(x))=-\tr(\nabla_x^2\Ephi(x))$.
+\end{proof}
+
+Therefore the optimizer obeys
+\[
+s^*(x)=\nabla_x\log p(x).
+\]
+So we do not need access to the true score value explicitly.
+
+\subsection{Sampling with Learned Score}
+
+After training, sample with
+\[
+x_{n+1}=x_n+\eta s_{\phi^*}(x_n)+\sqrt{2\eta}\,\xi_n,\qquad \xi_n\sim\mathcal{N}(0,\mathbf{I}),
+\]
+which is the Euler--Maruyama discretization of
+\[
+\d x(t)=s_{\phi^*}(x(t))\,\d t+\sqrt{2}\,\d w(t),
+\]
+with initialization $x(0)$ from an initial distribution.
+
+% ============================================================
+\section{Denoising Score Matching}\label{sec:dsm}
+% ============================================================
+
+The tractable score matching loss of Section~\ref{sec:score-based} still requires $\tr(\nabla_x s_{\phi}(x))$, which is expensive to compute in high dimension. We first introduce sliced score matching, then a more robust alternative: denoising score matching.
+
+\subsection{Sliced Score Matching}\label{subsec:ssm}
+
+\begin{fact}{Random Projection of the Trace}{ssm-trace}
+Let $u\in\R^d$ be an isotropic random vector satisfying
+\[
+\E[u]=0,\qquad \E[uu^\top]=\mathbf{I}.
+\]
+Then for any matrix $A$,
+\[
+\tr(A)=\E_{u}\big[u^\top A u\big],
+\qquad
+\E_{u}\big[(u^\top s_{\phi}(x))^2\big]=\|s_{\phi}(x)\|_2^2.
+\]
+\end{fact}
+
+\begin{proof}
+Write $u^\top A u=\sum_{i,j}u_iA_{ij}u_j$. Taking expectation and using linearity,
+\[
+\E_u\big[u^\top Au\big]
+=\sum_{i,j}A_{ij}\,\E[u_iu_j]
+=\sum_{i,j}A_{ij}\,\delta_{ij}
+=\sum_i A_{ii}=\tr(A),
+\]
+where $\delta_{ij}$ is the Kronecker delta, using $\E[uu^\top]=\mathbf{I}$, i.e.\ $\E[u_iu_j]=\delta_{ij}$.
+For the second identity, apply the first with $A=s_{\phi}(x)s_{\phi}(x)^\top$:
+\[
+\E_u\big[(u^\top s_{\phi}(x))^2\big]
+=\E_u\big[u^\top s_{\phi}(x)s_{\phi}(x)^\top u\big]
+=\tr\!\big(s_{\phi}(x)s_{\phi}(x)^\top\big)
+=s_{\phi}(x)^\top s_{\phi}(x)
+=\|s_{\phi}(x)\|_2^2.
+\]
+\end{proof}
+
+Consequently,
+\[
+\mathcal{L}_{\mathrm{SSM}}(\phi)
+=
+\E_{x,u}
+\left[
+u^\top\big(\nabla_x s_{\phi}(x)\big)u
++\frac12\big(u^\top s_{\phi}(x)\big)^2
+\right],
+\]
+which can be computed with automatic differentiation.
+
+\begin{remark}{Interpretation}{ssm-remark}
+This means we only check the model along a random direction: the projected score is judged to align with regions of higher data density, so data points become stationary in expectation.
+\end{remark}
+
+\subsection{Denoising Score Matching}\label{subsec:dsm}
+
+Sliced score matching still relies on the raw data distribution, and so we have a more robust alternative: denoising score matching. The most naive objective function is
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi)
+=\frac12 \E_{x\sim\pdata}
+\left\|s_{\phi}(x)-\nabla_x\log \pdata(x)\right\|_2^2.
+\]
+
+\paragraph{(1) Vincent's Solution.}
+Inject noise into $x\sim\pdata$, using $\psigma(\tilde x\mid x)$ with scale $\sigma$. The neural network $s_{\phi}(\tilde x;\sigma)$ is trained to approximate the score of the marginal perturbed distribution,
+\[
+\psigma(\tilde x)=\int \psigma(\tilde x\mid x)\,\pdata(x)\,\d x,
+\]
+by minimizing the loss
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi;\sigma)
+=\frac12\E_{\tilde x\sim\psigma}
+\left\|s_{\phi}(\tilde x;\sigma)-\nabla_{\tilde x}\log\psigma(\tilde x)\right\|_2^2.
+\]
+
+$\nabla_{\tilde x}\log\psigma(\tilde x)$ is generally intractable. Conditioning on $x\sim\pdata$ produces an equivalent, tractable objective function:
+\[
+\mathcal{L}_{\mathrm{DSM}}(\phi;\sigma)
+=\frac12\E_{x\sim\pdata}\,\E_{\tilde x\sim\psigma(\cdot\mid x)}
+\left\|s_{\phi}(\tilde x;\sigma)-\nabla_{\tilde x}\log\psigma(\tilde x\mid x)\right\|_2^2.
+\]
+
+\begin{theorem}{Equivalence of $\mathcal{L}_{\mathrm{SM}}$ and $\mathcal{L}_{\mathrm{DSM}}$}{dsm-equivalence}
+The objectives $\mathcal{L}_{\mathrm{SM}}(\phi;\sigma)$ and $\mathcal{L}_{\mathrm{DSM}}(\phi;\sigma)$ share the same optimal minimizer:
+\[
+s^*(\tilde x;\sigma)=\nabla_{\tilde x}\log\psigma(\tilde x).
+\]
+\end{theorem}
+
+\begin{proof}
+Fix $\sigma$ and write $s_{\phi}=s_{\phi}(\cdot;\sigma)$ for brevity. Expanding the squared norms,
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi;\sigma)
+=\frac12\E_{\tilde x\sim\psigma}\|s_{\phi}(\tilde x)\|_2^2
+-\E_{\tilde x\sim\psigma}\big[s_{\phi}(\tilde x)^\top \nabla_{\tilde x}\log\psigma(\tilde x)\big]+C_1,
+\]
+\[
+\mathcal{L}_{\mathrm{DSM}}(\phi;\sigma)
+=\frac12\E_{x\sim\pdata}\E_{\tilde x\sim\psigma(\cdot\mid x)}\|s_{\phi}(\tilde x)\|_2^2
+-\E_{x\sim\pdata}\E_{\tilde x\sim\psigma(\cdot\mid x)}\big[s_{\phi}(\tilde x)^\top \nabla_{\tilde x}\log\psigma(\tilde x\mid x)\big]+C_2,
+\]
+where $C_1,C_2$ collect the $\phi$-independent quadratic terms in $\nabla_{\tilde x}\log\psigma(\tilde x)$ and $\nabla_{\tilde x}\log\psigma(\tilde x\mid x)$ respectively. Since $\psigma(\tilde x)=\int\psigma(\tilde x\mid x)\pdata(x)\,\d x$ is exactly the marginal of the joint $\pdata(x)\psigma(\tilde x\mid x)$, the quadratic terms agree:
+\[
+\E_{x\sim\pdata}\E_{\tilde x\sim\psigma(\cdot\mid x)}\|s_{\phi}(\tilde x)\|_2^2
+=\E_{\tilde x\sim\psigma}\|s_{\phi}(\tilde x)\|_2^2.
+\]
+It remains to match the cross terms. Differentiating $\psigma(\tilde x)=\int\psigma(\tilde x\mid x)\pdata(x)\,\d x$ with respect to $\tilde x$,
+\[
+\nabla_{\tilde x}\psigma(\tilde x)
+=\int \nabla_{\tilde x}\psigma(\tilde x\mid x)\,\pdata(x)\,\d x
+=\int \psigma(\tilde x\mid x)\,\nabla_{\tilde x}\log\psigma(\tilde x\mid x)\,\pdata(x)\,\d x,
+\]
+using $\nabla_{\tilde x}\psigma(\tilde x\mid x)=\psigma(\tilde x\mid x)\nabla_{\tilde x}\log\psigma(\tilde x\mid x)$. Dividing by $\psigma(\tilde x)$ and using Bayes' rule $\pdata(x\mid\tilde x)=\psigma(\tilde x\mid x)\pdata(x)/\psigma(\tilde x)$,
+\[
+\nabla_{\tilde x}\log\psigma(\tilde x)
+=\int \pdata(x\mid\tilde x)\,\nabla_{\tilde x}\log\psigma(\tilde x\mid x)\,\d x
+=\E_{x\sim\pdata(\cdot\mid\tilde x)}\big[\nabla_{\tilde x}\log\psigma(\tilde x\mid x)\big].
+\]
+Hence
+\begin{align*}
+\E_{\tilde x\sim\psigma}\big[s_{\phi}(\tilde x)^\top \nabla_{\tilde x}\log\psigma(\tilde x)\big]
+&=\E_{\tilde x\sim\psigma}\Big[s_{\phi}(\tilde x)^\top \E_{x\sim\pdata(\cdot\mid\tilde x)}\big[\nabla_{\tilde x}\log\psigma(\tilde x\mid x)\big]\Big] \\
+&=\E_{\tilde x\sim\psigma}\,\E_{x\sim\pdata(\cdot\mid\tilde x)}\big[s_{\phi}(\tilde x)^\top \nabla_{\tilde x}\log\psigma(\tilde x\mid x)\big] \\
+&=\E_{x\sim\pdata}\,\E_{\tilde x\sim\psigma(\cdot\mid x)}\big[s_{\phi}(\tilde x)^\top \nabla_{\tilde x}\log\psigma(\tilde x\mid x)\big],
+\end{align*}
+where the last line uses that $\psigma(\tilde x)\pdata(x\mid\tilde x)=\pdata(x)\psigma(\tilde x\mid x)$ is the same joint density of $(x,\tilde x)$ viewed two ways. This is exactly the cross term of $\mathcal{L}_{\mathrm{DSM}}(\phi;\sigma)$. Therefore
+\[
+\mathcal{L}_{\mathrm{SM}}(\phi;\sigma)=\mathcal{L}_{\mathrm{DSM}}(\phi;\sigma)+(C_1-C_2),
+\]
+with $C_1-C_2$ independent of $\phi$, so the two objectives share the same minimizer $s^*(\tilde x;\sigma)=\nabla_{\tilde x}\log\psigma(\tilde x)$.
+\end{proof}
+
+\begin{remark}{Conditioning Technique}{dsm-conditioning-remark}
+This conditioning technique also appears in DDPM, and in flow-based perspectives (e.g.\ flow matching).
+\end{remark}
+
+\begin{example}{Gaussian Noise Injection}{dsm-gaussian-example}
+Consider injecting Gaussian noise:
+\[
+\tilde x=x+\sigma\varepsilon,\qquad \varepsilon\sim\mathcal{N}(0,\mathbf{I})
+\;\Longrightarrow\;
+\psigma(\tilde x\mid x)=\mathcal{N}(\tilde x; x,\sigma^2\mathbf{I}).
+\]
+So the conditional score is
+\[
+\nabla_{\tilde x}\log\psigma(\tilde x\mid x)=\frac{x-\tilde x}{\sigma^2}.
+\]
+Hence the DSM loss simplifies to
+\[
+\mathcal{L}_{\mathrm{DSM}}(\phi;\sigma)
+=\frac12\E_{x,\,\tilde x\mid x}
+\left\|s_{\phi}(\tilde x;\sigma)-\frac{x-\tilde x}{\sigma^2}\right\|_2^2
+=\frac12\E_{x,\varepsilon}
+\left\|s_{\phi}(x+\sigma\varepsilon;\sigma)+\frac{\varepsilon}{\sigma}\right\|_2^2,
+\qquad \varepsilon\sim\mathcal{N}(0,\mathbf{I}).
+\]
+\end{example}
+
+When $\sigma$ is small, the Gaussian-smoothed marginal $\psigma=\pdata*\mathcal{N}(0,\sigma^2\mathbf{I})$ has a score close to that of the clean distribution: $\nabla_{\tilde x}\log\psigma(\tilde x)\approx\nabla_x\log\pdata(x)$. A small step along $\nabla_{\tilde x}\log\psigma(\tilde x)$ then moves a noisy sample toward high-probability regions of $\pdata$. This is the same idea as in score matching. When $\sigma$ is large, the smoothing over-simplifies the landscape. In practice, DSM uses small noise levels.
+
+\subsection{Sampling}\label{subsec:dsm-sampling}
+
+Let $s_{\phi^*}(\tilde x;\sigma)$ be the trained model. Use Langevin dynamics to replace the true score with the learned model to generate samples. Update rule:
+\[
+\tilde x_{n+1}=\tilde x_n+\eta\, s_{\phi^*}(\tilde x_n;\sigma)+\sqrt{2\eta}\,\xi_n,
+\qquad \xi_n\sim\mathcal{N}(0,\mathbf{I}),\quad n=0,1,2,\dots
+\]
+starting from an initial value $\tilde x_0$. When $\eta$ is small, after many iterations $\tilde x_n$ approaches samples from $\pdata$.
+
+\begin{remark}{Advantages}{dsm-advantages}
+Noise lifts data off a lower-dimensional manifold, giving $\psigma$ full support on $\R^d$, so $\nabla_{\tilde x}\log\psigma(\tilde x)$ is well defined everywhere. The noise also smooths out the sparse regions between modes, enhancing training signal quality and facilitating Langevin dynamics to traverse low-density regions more effectively.
+\end{remark}
+
+\subsection{Why DSM Is Denoising: Tweedie's Formula}\label{subsec:tweedie}
+
+Assume a Gaussian-corrupted observation $\tilde x\sim\mathcal{N}(\cdot;\alpha x,\sigma^2\mathbf{I})$ from an unknown $x\sim\pdata$, with $\alpha\neq 0$. The noisy marginal is defined as
+\[
+\psigma(\tilde x)\triangleq\int \mathcal{N}(\tilde x;\alpha x,\sigma^2\mathbf{I})\,\pdata(x)\,\d x.
+\]
+
+\begin{theorem}{Tweedie's Formula}{tweedie}
+Suppose $x\sim\pdata$ and $\tilde x\sim\mathcal{N}(\cdot;\alpha x,\sigma^2\mathbf{I})$ with $\alpha\neq0$. Then
+\[
+\alpha\,\E_{x\sim p(x\mid\tilde x)}\big[x\mid\tilde x\big]
+=\tilde x+\sigma^2\nabla_{\tilde x}\log\psigma(\tilde x),
+\]
+where the expectation is over the posterior distribution $p(x\mid\tilde x)$ of $x$ given $\tilde x$.
+\end{theorem}
+
+\begin{proof}
+Write $q(\tilde x\mid x)=\mathcal{N}(\tilde x;\alpha x,\sigma^2\mathbf{I})$, so $\psigma(\tilde x)=\int q(\tilde x\mid x)\,\pdata(x)\,\d x$. Since $q(\tilde x\mid x)\propto\exp\!\big(-\|\tilde x-\alpha x\|_2^2/(2\sigma^2)\big)$,
+\[
+\nabla_{\tilde x} q(\tilde x\mid x)
+=-\frac{\tilde x-\alpha x}{\sigma^2}\,q(\tilde x\mid x).
+\]
+Differentiating under the integral sign,
+\[
+\nabla_{\tilde x}\psigma(\tilde x)
+=\int \nabla_{\tilde x} q(\tilde x\mid x)\,\pdata(x)\,\d x
+=-\frac{1}{\sigma^2}\int (\tilde x-\alpha x)\,q(\tilde x\mid x)\,\pdata(x)\,\d x.
+\]
+Dividing by $\psigma(\tilde x)$ and using Bayes' rule $p(x\mid\tilde x)=q(\tilde x\mid x)\pdata(x)/\psigma(\tilde x)$,
+\[
+\nabla_{\tilde x}\log\psigma(\tilde x)
+=-\frac{1}{\sigma^2}\int (\tilde x-\alpha x)\,p(x\mid\tilde x)\,\d x
+=-\frac{1}{\sigma^2}\Big(\tilde x-\alpha\,\E_{x\sim p(\cdot\mid\tilde x)}[x\mid\tilde x]\Big).
+\]
+Rearranging,
+\[
+\alpha\,\E_{x\sim p(\cdot\mid\tilde x)}[x\mid\tilde x]
+=\tilde x+\sigma^2\nabla_{\tilde x}\log\psigma(\tilde x),
+\]
+which is the claimed formula.
+\end{proof}
+
+A denoised estimate is obtained by nudging $\tilde x$ a step of size $\sigma^2$ in the direction of $\nabla_{\tilde x}\log\psigma(\tilde x)$. In other words, Tweedie's formula lets us obtain clean samples/denoised estimates from noisy observations.
+
+\end{document}

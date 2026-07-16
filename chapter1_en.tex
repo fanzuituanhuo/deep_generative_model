@@ -1,0 +1,403 @@
+% !TEX program = xelatex
+% ============================================================
+%  Chapter 1 Deep Generative Modeling — English Main Version
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+%  Typography and page layout
+% ------------------------------------------------------------
+\IfFileExists{geometry.sty}{%
+  \usepackage[margin=2.5cm]{geometry}
+}{%
+  \PackageWarning{geometry}{geometry not found, fallback to default margins.}%
+}
+\usepackage{ctex}
+\usepackage{microtype}
+\linespread{1.08}
+
+% ------------------------------------------------------------
+%  Utility packages
+% ------------------------------------------------------------
+\usepackage{amsmath,amssymb,amsthm}
+\renewcommand{\proofname}{Proof}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{2em}
+\setlist[itemize]{itemsep=0.2em, topsep=0.25em}
+\setlist[enumerate]{itemsep=0.2em, topsep=0.25em}
+\newcommand{\bx}{\mathbf{x}}
+
+% ------------------------------------------------------------
+%  Colors and highlighting
+% ------------------------------------------------------------
+\definecolor{mydarkblue}{rgb}{0.0,0.08,0.45}
+\definecolor{cardbg}    {RGB}{245,245,247}
+\definecolor{highlight} {HTML}{FCD66F}
+\definecolor{warning}   {HTML}{E57373}
+\definecolor{info}      {HTML}{4DB6AC}
+\newcommand{\tlight}[1]{\textcolor{warning}{#1}}
+\newcommand{\tinfo} [1]{\textcolor{info}{#1}}
+\newcommand{\cbox}[2]{\colorbox{#1}{\textcolor{black}{#2}}}
+\newcommand{\bglight}[1]{\cbox{highlight}{#1}}
+\newcommand{\bgwarn} [1]{\cbox{warning}{#1}}
+\newcommand{\bginfo} [1]{\cbox{info}{#1}}
+
+% ------------------------------------------------------------
+%  Hyperlinks
+% ------------------------------------------------------------
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks = true,
+  linkcolor  = mydarkblue,
+  citecolor  = mydarkblue,
+  urlcolor   = mydarkblue
+}
+
+% ------------------------------------------------------------
+%  Section styles
+% ------------------------------------------------------------
+\titleformat{\section}
+  {\large\bfseries\color{mydarkblue}}{\thesection}{0.5em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+\titleformat{\subsection}
+  {\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{1ex}{0.5ex}
+
+% ------------------------------------------------------------
+%  Theorem environments (tcolorbox)
+% ------------------------------------------------------------
+\tcbset{
+  mytheo/.style={
+    enhanced, breakable,
+    colback=#1!5!white, colframe=#1!70!black,
+    coltitle=white, fonttitle=\bfseries\small,
+    boxrule=0.6pt, arc=3pt,
+    left=5pt, right=5pt, top=10pt, bottom=5pt,
+    attach boxed title to top left={yshift*=-\tcboxedtitleheight/2, xshift=2mm},
+    boxed title style={
+      colback=#1!80!black, colframe=#1!80!black,
+      boxrule=0pt, arc=2pt
+    }
+  }
+}
+\newtcbtheorem[auto counter]             {dgmdef}    {Definition}{mytheo=NavyBlue}{dgmdef}
+\newtcbtheorem[use counter from=dgmdef]  {dgmthm}    {Theorem}{mytheo=WildStrawberry}{dgmthm}
+\newtcbtheorem[use counter from=dgmdef]  {dgmremark} {Remark}{mytheo=Periwinkle}{dgmrem}
+
+\tcolorboxenvironment{proof}{
+  blanker, breakable, left=4pt, right=4pt, top=3pt, bottom=3pt,
+  borderline west={2pt}{0pt}{gray!50}
+}
+
+% ------------------------------------------------------------
+%  Header + horizontal navigation
+% ------------------------------------------------------------
+\makeatletter
+\newcommand{\makeDGMTitleEN}{%
+  \begin{tcolorbox}[
+    colback=mydarkblue!5, colframe=mydarkblue!10,
+    arc=3pt, boxrule=0.5pt,
+    left=5pt, right=5pt, top=5pt, bottom=5pt
+  ]
+    {\large\bfseries\@title}\hfill{\small\@author}\\[-2pt]
+    {\tiny\color{gray}\@date\hfill Chapter 1 · Diffusion and Score Matching}
+  \end{tcolorbox}
+  \vspace{-0.6em}
+}
+\makeatother
+
+\newtcolorbox{tabNavBoxSmall}[1][]{
+  enhanced,
+  colframe=white, colback=gray!5, coltext=black!80,
+  fontupper=\sffamily\small\bfseries,
+  arc=1.5mm, boxrule=0pt, bottomrule=2pt,
+  left=2mm, right=2mm, top=1.5mm, bottom=1.5mm,
+  #1
+}
+
+\newcommand{\horizontalTOCDGMEN}{%
+  \begin{center}
+  \begin{tcbraster}[
+    raster columns=3, raster width=\linewidth,
+    raster column skip=1mm, raster equal height
+  ]
+    \begin{tabNavBoxSmall}
+      \hyperref[sec:setup]{\ Setup and Goal}
+    \end{tabNavBoxSmall}
+    \begin{tabNavBoxSmall}
+      \hyperref[sec:divergence]{\ Divergences and Training}
+    \end{tabNavBoxSmall}
+    \begin{tabNavBoxSmall}
+      \hyperref[sec:taxonomy]{\ Taxonomy and Summary}
+    \end{tabNavBoxSmall}
+  \end{tcbraster}
+  \vspace{-2.5pt}%
+  \noindent\textcolor{gray!30}{\rule{\linewidth}{1pt}}
+  \end{center}
+  \vspace{1.2em}
+}
+
+\title{Diffusion and Score Matching \\ \large Chapter 1: Deep Generative Modeling Basics (English-main)}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\makeDGMTitleEN
+\horizontalTOCDGMEN
+
+\begin{center}
+  \includegraphics[width=\linewidth]{\detokenize{ChatGPT Image 2026年6月5日 20_07_56.png}}
+\end{center}
+\vspace{0.5em}
+
+\section{Deep Generative Modeling}\label{sec:setup}
+\subsection{Problem Setup}
+\textbf{Input:}
+A collection of real-world samples drawn from an unknown data distribution $P_{\mathrm{data}}(\bx)$.
+
+\textbf{Output:}
+A neural-network parameterized model distribution $P_\phi(\bx)$.
+
+\textbf{Goal:}
+\begin{enumerate}[label=(\arabic*)]
+  \item Generate samples that resemble real data;
+  \item Enable controllable generation.
+\end{enumerate}
+
+\subsection{Mathematical Formulation}
+Let the training set be
+\[
+\mathcal D=\{\bx^{(i)}\}_{i=1}^{N},\qquad \bx^{(i)}\overset{\mathrm{i.i.d.}}{\sim}P_{\mathrm{data}}.
+\]
+We seek parameters $\phi^\star$ such that
+\[
+P_{\phi^\star}(\bx)\approx P_{\mathrm{data}}(\bx).
+\]
+Training is framed as minimizing a discrepancy between distributions:
+\[
+\phi^\star=\arg\min_\phi D\!\big(P_{\mathrm{data}},P_\phi\big).
+\]
+
+\section{Divergences and Training Objectives}\label{sec:divergence}
+\subsection{KL Divergence (Forward KL)}
+
+\begin{dgmdef}{Kullback--Leibler Divergence}{kl-divergence}
+\[
+D_{\mathrm{KL}}(P_{\mathrm{data}}\parallel P_\phi)
+\triangleq \int P_{\mathrm{data}}(\bx)\,
+\log\frac{P_{\mathrm{data}}(\bx)}{P_\phi(\bx)}\,d\bx
+=\mathbb{E}_{\bx\sim P_{\mathrm{data}}}
+\left[\log\frac{P_{\mathrm{data}}(\bx)}{P_\phi(\bx)}\right].
+\]
+\end{dgmdef}
+
+Expanding yields
+\[
+D_{\mathrm{KL}}(P_{\mathrm{data}}\parallel P_\phi)
+=\mathbb{E}_{\bx\sim P_{\mathrm{data}}}
+\big[\log P_{\mathrm{data}}(\bx)-\log P_\phi(\bx)\big]
+=-\mathbb{E}_{\bx\sim P_{\mathrm{data}}}\big[\log P_\phi(\bx)\big]-H(P_{\mathrm{data}}),
+\]
+where
+\[
+H(P_{\mathrm{data}})
+\triangleq -\mathbb{E}_{\bx\sim P_{\mathrm{data}}}\big[\log P_{\mathrm{data}}(\bx)\big]
+\]
+is the entropy of the data distribution and does not depend on $\phi$. Therefore:
+
+\begin{dgmthm}{Forward KL $\Longleftrightarrow$ Maximum Likelihood Estimation}{kl-mle}
+\[
+\min_\phi D_{\mathrm{KL}}(P_{\mathrm{data}}\parallel P_\phi)
+\Longleftrightarrow
+\max_\phi \mathbb{E}_{\bx\sim P_{\mathrm{data}}}[\log P_\phi(\bx)].
+\]
+With finite data, this corresponds to the empirical objective
+\[
+\max_\phi \frac{1}{N}\sum_{i=1}^{N}\log P_\phi\!\big(\bx^{(i)}\big).
+\]
+\end{dgmthm}
+
+\subsection{Fisher Divergence}
+
+\begin{dgmdef}{Fisher Divergence}{fisher-divergence}
+\[
+D_F(P\parallel Q)
+=\mathbb{E}_{\bx\sim P}
+\left[\left\|\nabla_{\bx}\log P(\bx)-\nabla_{\bx}\log Q(\bx)\right\|^2\right].
+\]
+This divergence is always nonnegative: $D_F(P\parallel Q)\ge 0$. Under suitable regularity conditions,
+\[
+D_F(P\parallel Q)=0 \iff \nabla_{\bx}\log P(\bx)=\nabla_{\bx}\log Q(\bx)\quad (P\text{-a.s.}).
+\]
+\end{dgmdef}
+
+In diffusion/score matching settings, one typically sets $P=P_{\mathrm{data}}$ and $Q=P_\phi$, so training matches score functions.
+
+\subsection{$f$-Divergence Family}
+
+\begin{dgmdef}{$f$-Divergence}{f-divergence}
+For convex $f:\mathbb{R}_+\to\mathbb{R}$ with $f(1)=0$:
+\[
+D_f(P\parallel Q)=\int Q(\bx)\,f\!\left(\frac{P(\bx)}{Q(\bx)}\right)\,d\bx.
+\]
+\end{dgmdef}
+
+Common members:
+\begin{itemize}
+  \item \textbf{Jensen--Shannon Divergence}
+  \[
+  f_{\mathrm{JS}}(u)=u\log u-(u+1)\log\frac{u+1}{2},
+  \]
+  \[
+  D_{\mathrm{JS}}(P\parallel Q)
+  =\frac12 D_{\mathrm{KL}}(P\parallel M)+\frac12 D_{\mathrm{KL}}(Q\parallel M),
+  \quad M=\frac{P+Q}{2}.
+  \]
+
+  \item \textbf{Total Variation Distance}
+  \[
+  f_{\mathrm{TV}}(u)=\frac12|u-1|,
+  \]
+  \[
+  D_{\mathrm{TV}}(P,Q)
+  =\frac12\int\!\left|P(\bx)-Q(\bx)\right|d\bx
+  =\sup_A\left|P(A)-Q(A)\right|.
+  \]
+\end{itemize}
+
+\subsection{Challenges in Explicit Density Modeling}
+A valid density $P_\phi(\bx)$ must satisfy:
+\begin{enumerate}
+  \item Non-negativity: $P_\phi(\bx)\ge 0$;
+  \item Normalization: $\int P_\phi(\bx)\,d\bx=1$.
+\end{enumerate}
+A common construction is the Energy-Based Model (EBM), written in two steps:
+\begin{enumerate}
+  \item Define an energy network $E_\phi:\mathbb{R}^D\to\mathbb{R}$ and obtain an unnormalized density
+  \[
+  \widetilde P_\phi(\bx)=\exp(E_\phi(\bx));
+  \]
+  \item Normalize it with the partition function
+\[
+P_\phi(\bx)=\frac{\exp(E_\phi(\bx))}{Z(\phi)},
+\qquad
+Z(\phi)=\int\exp(E_\phi(\bx))\,d\bx.
+\]
+\end{enumerate}
+In practice, the partition function $Z(\phi)$ is usually intractable in high dimensions.
+
+\section{Representative Generative Models}\label{sec:taxonomy}
+\begin{enumerate}
+
+  \item \textbf{Energy-Based Models (EBM)}
+
+  Define an energy function $E_\phi:\mathbb{R}^D\to\mathbb{R}$ via a neural network (using the \textbf{negative-energy} convention):
+  \[
+  P_\phi(\bx)
+  \triangleq \frac{1}{Z(\phi)}\exp\!\big({-}E_\phi(\bx)\big),
+  \qquad
+  Z(\phi)=\int\exp\!\big({-}E_\phi(\bx)\big)\,d\bx.
+  \]
+  The partition function $Z(\phi)$ is generally intractable in high dimensions.
+
+  \item \textbf{Autoregressive Models}
+
+  Factorize the joint distribution by the chain rule:
+  \[
+  P(\bx)=\prod_{i=1}^{D}P_\phi(x_i\mid x_{<i}),
+  \qquad
+  x_{<i}\triangleq(x_1,x_2,\ldots,x_{i-1}).
+  \]
+  Each conditional $P_\phi(x_i\mid x_{<i})$ is parameterized by a neural network (e.g.\ a Transformer).\\
+  Training objective: minimize the negative log-likelihood
+  \[
+  \min_\phi\;-\frac{1}{N}\sum_{n=1}^{N}\sum_{i=1}^{D}\log P_\phi\!\big(x_i^{(n)}\mid x_{<i}^{(n)}\big).
+  \]
+
+  \item \textbf{Variational Autoencoders (VAE)}
+
+  Introduce a latent variable $z$ to capture hidden structure in data:
+  \begin{itemize}
+    \item Encoder: $q_\phi(z\mid \bx)$
+    \item Decoder: $p_\theta(\bx\mid z)$
+  \end{itemize}
+  Training objective: maximize the Evidence Lower Bound (ELBO)
+  \[
+  \mathcal{L}_{\mathrm{ELBO}}(\theta,\phi;\bx)
+  =\mathbb{E}_{z\sim q_\phi(z\mid \bx)}\!\big[\log p_\theta(\bx\mid z)\big]
+  -D_{\mathrm{KL}}\!\big(q_\phi(z\mid \bx)\parallel p(z)\big)
+  \;\le\;\log p_\theta(\bx).
+  \]
+
+  \item \textbf{Normalizing Flows}
+
+  Learn a \textbf{bijective mapping} $f$ between data space $\bx$ and latent space $z$:
+  \[
+  \bx \;\xrightarrow{f}\; z \;\xrightarrow{f^{-1}}\; \bx'.
+  \]
+  By the change-of-variables formula:
+  \[
+  \log P_\phi(\bx)
+  =\log p_Z\!\big(f(\bx)\big)
+  +\log\left|\det\frac{\partial f(\bx)}{\partial \bx}\right|.
+  \]
+  With a simple prior $p_Z$ (e.g.\ standard Gaussian), log-likelihood is computed exactly.
+
+  \item \textbf{Generative Adversarial Networks (GAN)}
+
+  GAN trains two networks adversarially:
+  \begin{itemize}
+    \item \textbf{Discriminator} $D$: distinguishes real from generated samples
+    \[
+    \bx \;\longrightarrow\; D(\bx) \;\longrightarrow\; 0/1
+    \]
+    \item \textbf{Generator} $G$: maps prior noise to fake samples
+    \[
+    z\sim p_{\mathrm{prior}}(z) \;\longrightarrow\; G(z) \;\longrightarrow\; \bx'
+    \]
+  \end{itemize}
+  Standard minimax objective:
+  \[
+  \min_{G}\max_{D}
+  \ \mathbb{E}_{\bx\sim P_{\mathrm{data}}}[\log D(\bx)]
+  +\mathbb{E}_{z\sim p_{\mathrm{prior}}(z)}[\log(1-D(G(z)))].
+  \]
+  \textbf{Key point:} GAN does \textbf{not} define a density $P(\bx)$ — it is a canonical example of implicit modeling.
+
+\end{enumerate}
+
+\subsection{Explicit vs.\ Implicit Modeling}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & \textbf{Explicit Modeling} & \textbf{Implicit Modeling} \\
+\midrule
+Density $P(\bx)$ & Explicitly defined (or approximated) & Not defined \\
+Likelihood & Computable (exactly or approximately) & Cannot be directly evaluated \\
+Training & Maximize likelihood / ELBO & Adversarial training \\
+Sampling & Via model distribution & $\bx=G_\phi(z),\ z\sim p_\mathrm{prior}$ \\
+Examples & VAE, Normalizing Flows, AR, EBM & GAN \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Summary}
+\begin{itemize}
+  \item The core objective is to align $P_\phi$ with $P_{\mathrm{data}}$;
+  \item Forward KL leads to MLE but can be computationally challenging in high dimensions;
+  \item Different model classes balance tractability and expressiveness differently;
+  \item Diffusion models can be viewed as score matching plus iterative denoising, to be covered next.
+\end{itemize}
+
+\end{document}
